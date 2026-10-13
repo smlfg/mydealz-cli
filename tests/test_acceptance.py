@@ -74,3 +74,55 @@ def test_search_no_query_is_allowed():
 def test_watch_missing_query_exits_1():
     r = _run_cli("watch", "--json")
     assert r.returncode == 1
+
+
+# ---------- Regression: Such-URL muss /search?q=… sein, nicht /?q=… ----------
+
+def test_search_url_uses_search_path_not_homepage():
+    """Regression: ``mydealz search --query <X>`` muss ``/search?q=…``
+    aufrufen, nicht ``/?q=…``. Die Homepage ignoriert ``q`` und liefert
+    das allgemeine Feed (Apple TV, Rasierer, Schuhe).
+    """
+    import sys as _sys
+    _sys.path.insert(0, str(ROOT / "src"))
+    from mydealz_cli import url_builder  # noqa: E402
+
+    url = url_builder.build_search_url(query="macbook")
+    assert url.startswith("https://www.mydealz.de/search?"), url
+    assert "q=macbook" in url
+    # Die alte kaputte Form darf nicht zurückkommen:
+    assert not url.startswith("https://www.mydealz.de/?"), (
+        f"BUG: q auf der Homepage-Route wird von mydealz ignoriert. URL: {url}"
+    )
+
+
+def test_search_results_contain_query_term_in_fixture():
+    """Akzeptanztest mit Fixture.
+
+    Reproduziert das Bug-Symptom: mydealz-Startseiten-HTML (Fixture
+    ``homepage_fallback.html``) ohne das Suchwort ``macbook`` liefert
+    zwangsläufig Treffer, die das Wort *nicht* im Titel tragen. Dieser
+    Test dokumentiert die Bug-Lage: würde ein zukünftiger Patch die
+    Suche wieder auf ``/?q=`` (Homepage-Route) umstellen, würden
+    *alle* so produzierten Treffer irrelevant zur Query sein — exakt
+    der gemeldete Fehler (``Apple TV, Rasierer, Schuhe`` statt MacBook).
+
+    Der eigentliche Fix wird über
+    ``test_search_url_uses_search_path_not_homepage`` festgenagelt.
+    """
+    from urllib.parse import quote as _q
+    sys.path.insert(0, str(ROOT / "src"))
+    from mydealz_cli import parser  # noqa: E402
+
+    fix_dir = ROOT / "tests" / "fixtures"
+    fixture_html = (fix_dir / "homepage_fallback.html").read_text(encoding="utf-8")
+    items = parser.parse_search(fixture_html, limit=20)
+    query = "macbook"
+    relevant = [i for i in items if query in (i.get("titel") or "").lower()]
+    assert items, "Fixture muss sich parsen lassen"
+    # Die Homepage kennt das Stichwort nicht. KEIN Titel darf es enthalten.
+    assert relevant == [], (
+        f"Fixture ist die Homepage — sie darf keine Treffer zu "
+        f"{query!r} enthalten, sonst wäre die Regression wieder da. "
+        f"items={[i['titel'] for i in items][:5]!r}"
+    )

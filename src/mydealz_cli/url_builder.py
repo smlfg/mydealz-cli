@@ -1,6 +1,10 @@
 """URL-Bau für mydealz.de-Suchen.
 
-mydealz.de nutzt GET-Parameter auf der Startseite:
+Suchanfragen müssen den Pfad ``/search`` benutzen – die
+Startseite ``/`` ignoriert ``q`` (sie ist reine SSR-Startseite
+und liefert sonst Apple TV, Rasierer etc.).
+
+Unterstützte Query-Parameter:
 
 * ``q`` – Stichwort (Volltext).
 * ``type`` – ``deal`` (Default), ``voucher`` (nur Gutscheine),
@@ -11,14 +15,12 @@ mydealz.de nutzt GET-Parameter auf der Startseite:
 * ``hide-expired`` – ``1`` / ``0``.
 * ``page`` – Pagination, Default 1.
 * ``min-price`` / ``max-price`` – in Euro, ganzzahlig.
-* ``merchant-id`` – mydealz-Interne Händler-ID (siehe
-  ``resolve_merchant``).
-* ``group-id`` – mydealz-Interne Kategorie-ID (siehe
-  ``resolve_category``).
+* ``merchant-id`` – mydealz-Interne Händler-ID.
+* ``group-id`` – mydealz-Interne Kategorie-ID.
 
-Die Startseite akzeptiert ebenfalls ``/search?q=…``. Wir nutzen
-durchgehend die Startseite, damit die Filter kombinierbar sind
-und Re-Exports stabil bleiben.
+Hinweis: früher wurde die Startseite (``/``) als Such-URL
+verwendet. Das war falsch – mydealz ignoriert dort den
+``q``-Parameter und liefert das allgemeine Feed.
 """
 
 from __future__ import annotations
@@ -190,7 +192,17 @@ def build_search_url(
         params.append(("hide-upcoming", "1"))
     # min-temperature wird clientseitig angewendet (kein URL-Support).
     from urllib.parse import urlencode
+    # Wann immer eine Such-Anfrage vorliegt (q gesetzt), MUSS die URL
+    # auf /search?q=… gehen. Die Homepage-Route /?q=… wird von
+    # mydealz stumm ignoriert (sie liefert dann das allgemeine Feed
+    # wie Apple TV, Rasierer, Schuhe — nicht das Stichwort).
+    has_query = bool(query)
     qs = urlencode(params)
+    if has_query:
+        return f"{BASE}/search?{qs}"
+    # Ohne q bleibt es bei der Homepage (Hot-Feed) – Filter werden dann
+    # zwar nicht von mydealz akzeptiert, aber wir liefern bewusst
+    # nicht-leere URLs, damit ``search`` ohne Argument gültig bleibt.
     return f"{BASE}/?{qs}" if qs else BASE
 
 

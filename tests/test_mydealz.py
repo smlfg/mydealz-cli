@@ -51,15 +51,31 @@ def parsed_search(search_html) -> list[dict]:
 
 def test_build_search_url_basic():
     u = url_builder.build_search_url(query="kindle", hide_expired=True)
-    assert u.startswith("https://www.mydealz.de/")
+    # Suchanfragen MÜSSEN /search?q=… benutzen — die Homepage ignoriert q.
+    assert u.startswith("https://www.mydealz.de/search?")
     assert "q=kindle" in u
     assert "hide-expired=1" in u
 
 
 def test_build_search_url_no_query():
-    u = url_builder.build_search_url(order="newest")
+    # Ohne query fällt das CLI auf die Homepage-Route zurück.
+    u = url_builder.build_search_url(order="newest", hide_expired=True)
+    assert u.startswith("https://www.mydealz.de/?")
     assert "order=newest" in u
+    assert "hide-expired=1" in u
     assert "q=" not in u
+    # Kritisch: ohne q darf NICHT /search genutzt werden, sonst würde
+    # der Filter zwar von mydealz akzeptiert, aber wir landen auf
+    # einer leeren Suchseite — und /search ohne q ist nicht
+    # definiertes Verhalten.
+    assert "/search" not in u
+
+
+def test_build_search_url_uses_search_path_not_homepage():
+    """Regression: q auf der Homepage-Route wurde stillschweigend ignoriert."""
+    u = url_builder.build_search_url(query="macbook")
+    assert "/search?" in u, f"erwartet /search?q=…, bekam {u}"
+    assert "/?" not in u.replace("/search?", ""), "Homepage-Route würde q verschlucken"
 
 
 def test_build_search_url_filters():
