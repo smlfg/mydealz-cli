@@ -167,6 +167,10 @@ Tests
     pytest -q
 
 Die Tests sind netz-frei: HTML-Fixtures unter `tests/fixtures/`. Die
+Fixtures sind gekürzt und synthetisch: Nur das Markup, das der Parser liest
+(`article#thread_<id>`, `data-vue3`-JSON, `.thread-title a`), echte
+Usernamen sind durch `user_1`, `user_2`, … ersetzt, Gutscheincodes durch
+`CODE_1`, …. Die
 Akzeptanztests laufen das CLI als Subprozess mit Network-Sandbox
 (`agent-learnings/tests/harness/sitecustomize.py`); Verbindungen zu
 echten Hosts werden blockiert.
@@ -182,6 +186,10 @@ Sicherheit / Privatsphäre
 -------------------------
 
 * Keine personenbezogenen Daten werden erfunden oder im Repo abgelegt.
+  `python3 scripts/pii_guard.py` prüft alle getrackten Dateien auf
+  E-Mail-Adressen, Matrikelnummern und mydealz-Usernamen, die nicht in
+  `.pii-allowlist` stehen; `pytest` führt den Guard mit aus. Neue Fixtures
+  nur mit Platzhaltern (`user_N`) einchecken.
 * Sessions gibt es nicht – das Tool hat keinen Login.
 * Kein Tracking, keine externen Skripte außer den `requests`-Calls gegen
   mydealz.de mit ehrlichem User-Agent.
