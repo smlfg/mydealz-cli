@@ -1,0 +1,11 @@
+# Allowlist for scripts/pii_guard.py. One entry per line, "#" starts a comment.
+# Owner commit address.
+186922365+smlfg@users.noreply.github.com
+# Single fixed placeholder for docs/tests.
+test@example.com
+# Synthetic placeholders used in tests/fixtures (user_1, user_2, ...).
+username:user_\d+
+# Merchant profile slug (a shop, not a person) used in README/tests for --merchant URLs.
+username:amazon-de
+# Documentation placeholders such as <x> or <slug> (never a real name).
+username:<[a-z]+>
