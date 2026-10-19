@@ -167,7 +167,7 @@ def build_search_url(
     only_active: bool = False,
     min_temperature: Optional[float] = None,
 ) -> str:
-    """Baut die URL für eine Suche auf der Startseite."""
+    """Baut die URL für eine Suche (``/search``) oder den Hot-Feed (``/``)."""
     params: list[tuple[str, str]] = []
     if query:
         params.append(("q", query))
@@ -192,17 +192,16 @@ def build_search_url(
         params.append(("hide-upcoming", "1"))
     # min-temperature wird clientseitig angewendet (kein URL-Support).
     from urllib.parse import urlencode
-    # Wann immer eine Such-Anfrage vorliegt (q gesetzt), MUSS die URL
-    # auf /search?q=… gehen. Die Homepage-Route /?q=… wird von
-    # mydealz stumm ignoriert (sie liefert dann das allgemeine Feed
-    # wie Apple TV, Rasierer, Schuhe — nicht das Stichwort).
-    has_query = bool(query)
+    # Stichwort und Filter (type, order, …) müssen über /search laufen;
+    # auf / ignoriert mydealz q sowie type/order/page/Preisfilter.
+    has_search_path = bool(query) or bool(deal_type) or bool(order) or (
+        page and page > 1
+    ) or min_price is not None or max_price is not None or (
+        merchant_id is not None
+    ) or category_id is not None or only_active
     qs = urlencode(params)
-    if has_query:
+    if has_search_path:
         return f"{BASE}/search?{qs}"
-    # Ohne q bleibt es bei der Homepage (Hot-Feed) – Filter werden dann
-    # zwar nicht von mydealz akzeptiert, aber wir liefern bewusst
-    # nicht-leere URLs, damit ``search`` ohne Argument gültig bleibt.
     return f"{BASE}/?{qs}" if qs else BASE
 
 
