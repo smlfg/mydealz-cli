@@ -43,6 +43,7 @@ def _apply_filters(
     items: list[dict],
     *,
     haendler: Optional[str],
+    kategorie: Optional[dict[str, str]] = None,
     min_preis: Optional[float],
     max_preis: Optional[float],
     min_temperatur: Optional[float],
@@ -56,6 +57,16 @@ def _apply_filters(
             i for i in out
             if (i.get("haendler", {}).get("name") or "").lower() == sl
             or (i.get("haendler", {}).get("slug") or "").lower() == sl
+        ]
+    if kategorie:
+        targets = {
+            (kategorie.get("slug") or "").lower(),
+            (kategorie.get("name") or "").lower(),
+        } - {""}
+        out = [
+            i for i in out
+            if (i.get("kategorie", {}).get("name") or "").lower() in targets
+            or (i.get("kategorie", {}).get("slug") or "").lower() in targets
         ]
     if min_preis is not None:
         out = [i for i in out if i["preis_eur"] is None or i["preis_eur"] >= min_preis]
@@ -146,6 +157,7 @@ def cmd_search(args: argparse.Namespace) -> int:
     items = _apply_filters(
         items,
         haendler=(merchant_obj.get("name") if merchant_obj else None),
+        kategorie=category_obj,
         min_preis=args.min_price,
         max_preis=args.max_price,
         min_temperatur=args.min_temperature,
@@ -269,6 +281,7 @@ def cmd_watch(args: argparse.Namespace) -> int:
     items = _apply_filters(
         items,
         haendler=(merchant_obj.get("name") if merchant_obj else None),
+        kategorie=category_obj,
         min_preis=args.min_price,
         max_preis=args.max_price,
         min_temperatur=args.min_temperature,
