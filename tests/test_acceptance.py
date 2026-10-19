@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-HARNESS = Path("/home/box/cli-daily/agent-learnings/tests/harness")
+HARNESS = ROOT / "tests" / "harness"
 
 
 def _run_cli(*args, env_extra=None):
@@ -30,6 +30,28 @@ def _run_cli(*args, env_extra=None):
         [sys.executable, "-m", "mydealz_cli.cli", *args],
         capture_output=True, text=True, env=env, cwd=str(ROOT), timeout=30,
     )
+
+
+def test_sandbox_harness_shipped_in_repo():
+    """Ohne sitecustomize im Repo würden Akzeptanztests echte Hosts kontaktieren."""
+    sc = HARNESS / "sitecustomize.py"
+    assert sc.is_file(), f"Netz-Sandbox fehlt: {sc}"
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(ROOT / "src") + os.pathsep + str(HARNESS)
+    env["ACCEPTANCE_SANDBOX"] = "1"
+    r = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import sitecustomize; import socket; socket.getaddrinfo('mydealz.de', 443)",
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=str(ROOT),
+        timeout=10,
+    )
+    assert r.returncode != 0 or "blocked" in (r.stderr + r.stdout).lower()
 
 
 def test_no_network_access_at_all():
