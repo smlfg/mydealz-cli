@@ -135,7 +135,7 @@ Such-Filter (alle optional, kombinierbar):
 
     --query / -q TEXT          Volltext-Stichwort
     --type {deal,coupon,voucher,freebie,groupdeal}
-    --order {newest,hot,trending,discussed,price-low,price-high}
+    --order {newest,hot,discussed,price-low,price-high}
     --page N                    Pagination (Default 1)
     --min-price / --max-price   Preisspanne in €
     --merchant KURZNAME         z. B. amazon, ebay, mediamarkt
