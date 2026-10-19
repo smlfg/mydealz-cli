@@ -351,3 +351,36 @@ def test_cmd_watch_persists_state_and_second_run_has_no_new(
     assert cli.cmd_watch(args) == 0
     out2 = json.loads(capsys.readouterr().out)
     assert out2["anzahl_neu"] == 0
+
+
+def test_cmd_watch_dry_run_does_not_write_state(
+    tmp_path, monkeypatch, search_html, capsys,
+):
+    """--dry-run meldet neue Deals, schreibt aber keine State-Datei."""
+    from mydealz_cli import cli
+    from mydealz_cli.http_client import Response
+
+    config = tmp_path / "xdg"
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(config))
+
+    class FakeClient:
+        def get(self, url):
+            return Response(status=200, url=url, text=search_html)
+
+    monkeypatch.setattr(cli, "HttpClient", lambda: FakeClient())
+
+    state_file = config / "mydealz-cli" / "watch.json"
+    args = _watch_cli_args(dry_run=True)
+
+    assert cli.cmd_watch(args) == 0
+    assert not state_file.exists()
+
+    out1 = json.loads(capsys.readouterr().out)
+    assert out1["anzahl_neu"] == 5
+    assert out1["hinweis"] == "Dry-Run: State wurde nicht aktualisiert."
+
+    assert cli.cmd_watch(args) == 0
+    assert not state_file.exists()
+
+    out2 = json.loads(capsys.readouterr().out)
+    assert out2["anzahl_neu"] == 5
