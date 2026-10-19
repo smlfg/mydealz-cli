@@ -275,10 +275,8 @@ def cmd_watch(args: argparse.Namespace) -> int:
     new_items, current_ids = watch.diff_for_query(
         state, query=args.q, items=items, extra_filters=filters,
     )
-    state_path_written = watch.save_state(
-        watch.update_state(state, query=args.q, ids=current_ids, extra_filters=filters),
-        state_path,
-    )
+    watch.update_state(state, query=args.q, ids=current_ids, extra_filters=filters)
+    state_path_written = watch.save_state(state, state_path)
     payload = {
         "quelle": "https://www.mydealz.de",
         "url": url,
