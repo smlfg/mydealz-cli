@@ -58,16 +58,29 @@ def test_build_search_url_basic():
 
 
 def test_build_search_url_no_query():
-    # Ohne query fällt das CLI auf die Homepage-Route zurück.
+    # Filter ohne Stichwort: /search (Homepage ignoriert type/order/…).
     u = url_builder.build_search_url(order="newest", hide_expired=True)
-    assert u.startswith("https://www.mydealz.de/?")
+    assert u.startswith("https://www.mydealz.de/search?")
     assert "order=newest" in u
     assert "hide-expired=1" in u
     assert "q=" not in u
-    # Kritisch: ohne q darf NICHT /search genutzt werden, sonst würde
-    # der Filter zwar von mydealz akzeptiert, aber wir landen auf
-    # einer leeren Suchseite — und /search ohne q ist nicht
-    # definiertes Verhalten.
+
+
+def test_build_search_url_filters_without_query_use_search_path():
+    """Regression #7: coupon + order ohne --query."""
+    u = url_builder.build_search_url(
+        deal_type="coupon", order="price-low", hide_expired=True
+    )
+    assert u.startswith("https://www.mydealz.de/search?")
+    assert "type=voucher" in u
+    assert "order=price-low" in u
+    assert "hide-expired=1" in u
+    assert "q=" not in u
+
+
+def test_build_search_url_bare_defaults_stay_on_homepage():
+    u = url_builder.build_search_url(hide_expired=True)
+    assert u.startswith("https://www.mydealz.de/?")
     assert "/search" not in u
 
 
