@@ -98,6 +98,32 @@ def test_watch_missing_query_exits_1():
     assert r.returncode == 1
 
 
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["show"],
+        ["search", "--order", "bogus"],
+        ["search", "--type", "x"],
+        ["search", "--page", "abc"],
+        ["bogus"],
+    ],
+)
+def test_argparse_input_errors_exit_1_json_stderr(args):
+    r = _run_cli(*args)
+    assert r.returncode == 1
+    payload = json.loads(r.stderr.strip())
+    assert "error" in payload
+    assert isinstance(payload["error"], str)
+    assert payload["error"]
+
+
+def test_no_subcommand_exits_1_json_stderr():
+    r = _run_cli()
+    assert r.returncode == 1
+    payload = json.loads(r.stderr.strip())
+    assert "error" in payload
+
+
 # ---------- Regression: Such-URL muss /search?q=… sein, nicht /?q=… ----------
 
 def test_search_url_uses_search_path_not_homepage():
