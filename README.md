@@ -168,7 +168,7 @@ Tests
 
 Die Tests sind netz-frei: HTML-Fixtures unter `tests/fixtures/`. Die
 Akzeptanztests laufen das CLI als Subprozess mit Network-Sandbox
-(`agent-learnings/tests/harness/sitecustomize.py`); Verbindungen zu
+(`tests/harness/sitecustomize.py`); Verbindungen zu
 echten Hosts werden blockiert.
 
 Test in einem frischen venv (CI-Setup):

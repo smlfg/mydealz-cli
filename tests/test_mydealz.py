@@ -2,7 +2,7 @@
 
 Die Tests sind netz-frei: FakeHttpClient liefert die
 Fixture-HTMLs aus tests/fixtures/. Die Akzeptanztests starten das
-CLI als Subprozess mit der agent-learnings-Network-Sandbox
+CLI als Subprozess mit der Network-Sandbox unter tests/harness
 (sitecustomize), die alle Nicht-Loopback-Verbindungen blockiert.
 """
 
