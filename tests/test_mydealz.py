@@ -191,6 +191,37 @@ def test_parse_detail_og_meta(detail_html):
     assert ang["titel"] is not None
 
 
+def test_detail_render_module_importable():
+    from mydealz_cli import detail_render  # noqa: WPS433
+
+    assert callable(detail_render.render_detail)
+
+
+def test_parse_detail_from_playwright_html(detail_html):
+    ang = parser.parse_detail_from_playwright_html(detail_html, "2853300")
+    assert ang["id"] == "2853300"
+    assert ang["haendler"]["name"] == "Amazon"
+    assert ang["temperatur"] is not None
+    assert ang.get("beschreibung_text")
+    assert "hinweis" not in ang
+
+
+def test_cmd_show_playwright_uses_detail_render(monkeypatch, detail_html, capsys):
+    """Regression #3: --render playwright darf nicht playwright_missing melden."""
+    import argparse
+
+    from mydealz_cli import cli, detail_render
+
+    def fake_render(url, tid):
+        return parser.parse_detail_from_playwright_html(detail_html, tid)
+
+    monkeypatch.setattr(detail_render, "render_detail", fake_render)
+    args = argparse.Namespace(deal="2853300", render="playwright", json=True)
+    assert cli.cmd_show(args) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["deal"]["temperatur"] is not None
+
+
 # ---------- Client-Filter ----------
 
 def test_apply_filters_by_merchant(parsed_search):
