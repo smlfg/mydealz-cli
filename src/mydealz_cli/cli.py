@@ -149,7 +149,7 @@ def cmd_search(args: argparse.Namespace) -> int:
         min_preis=args.min_price,
         max_preis=args.max_price,
         min_temperatur=args.min_temperature,
-        nur_aktiv=args.only_active,
+        nur_aktiv=args.only_active or not args.include_expired,
         nur_mit_code=args.only_with_code,
     )
     if args.limit:
@@ -272,7 +272,7 @@ def cmd_watch(args: argparse.Namespace) -> int:
         min_preis=args.min_price,
         max_preis=args.max_price,
         min_temperatur=args.min_temperature,
-        nur_aktiv=args.only_active,
+        nur_aktiv=args.only_active or not args.include_expired,
         nur_mit_code=args.only_with_code,
     )
     if args.limit:
