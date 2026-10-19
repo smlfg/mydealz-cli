@@ -212,6 +212,25 @@ def test_apply_filters_by_merchant(parsed_search):
     assert all(o["haendler"]["name"] == "Amazon" for o in out)
 
 
+def test_apply_filters_by_category(parsed_search):
+    cat = url_builder.resolve_category("elektronik")
+    out = _apply_filters(
+        parsed_search,
+        haendler=None,
+        kategorie=cat,
+        min_preis=None,
+        max_preis=None,
+        min_temperatur=None,
+        nur_aktiv=False,
+        nur_mit_code=False,
+    )
+    assert out, "mindestens ein Elektronik-Deal in der Fixture erwartet"
+    assert len(out) < len(parsed_search)
+    for o in out:
+        k = o.get("kategorie") or {}
+        assert k.get("slug") == "elektronik" or (k.get("name") or "").lower() == "elektronik"
+
+
 def test_apply_filters_by_min_price(parsed_search):
     out = _apply_filters(parsed_search, haendler=None, min_preis=10, max_preis=None,
                           min_temperatur=None, nur_aktiv=False, nur_mit_code=False)
