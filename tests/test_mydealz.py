@@ -236,6 +236,92 @@ def test_apply_filters_only_active(parsed_search):
             assert o["ist_aktiv"] is True
 
 
+def _search_cli_args(**overrides):
+    import argparse
+
+    defaults = {
+        "q": "airpods",
+        "type": None,
+        "order": None,
+        "page": 2,
+        "min_price": None,
+        "max_price": None,
+        "merchant": None,
+        "merchant_id": None,
+        "category": None,
+        "category_id": None,
+        "include_expired": False,
+        "only_active": False,
+        "min_temperature": None,
+        "only_with_code": False,
+        "limit": 5,
+        "json": True,
+    }
+    defaults.update(overrides)
+    return argparse.Namespace(**defaults)
+
+
+def test_cmd_search_default_hides_expired_despite_server_leak(
+    monkeypatch, capsys,
+):
+    """Regression #9: mydealz liefert ab Seite 2 trotz hide-expired=1 abgelaufene Deals."""
+    from mydealz_cli import cli
+    from mydealz_cli.http_client import Response
+
+    leaked = [
+        {
+            "id": "2831618",
+            "ist_aktiv": False,
+            "preis_eur": 99.0,
+            "temperatur": 100.0,
+            "haendler": {"name": "Amazon", "slug": "amazon"},
+        },
+        {
+            "id": "9999999",
+            "ist_aktiv": True,
+            "preis_eur": 89.0,
+            "temperatur": 200.0,
+            "haendler": {"name": "Amazon", "slug": "amazon"},
+        },
+    ]
+
+    class FakeClient:
+        def get(self, url):
+            assert "hide-expired=1" in url
+            return Response(status=200, url=url, text="<html></html>")
+
+    monkeypatch.setattr(cli, "HttpClient", lambda: FakeClient())
+    monkeypatch.setattr(cli.parser, "parse_search", lambda _text, limit: leaked[:limit])
+
+    assert cli.cmd_search(_search_cli_args()) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["url"].endswith("hide-expired=1")
+    assert all(d.get("ist_aktiv") is True for d in out["deals"])
+    assert {d["id"] for d in out["deals"]} == {"9999999"}
+
+
+def test_cmd_search_include_expired_keeps_inactive(monkeypatch, capsys):
+    from mydealz_cli import cli
+    from mydealz_cli.http_client import Response
+
+    leaked = [
+        {"id": "1", "ist_aktiv": False, "preis_eur": None, "temperatur": None, "haendler": {}},
+        {"id": "2", "ist_aktiv": True, "preis_eur": None, "temperatur": None, "haendler": {}},
+    ]
+
+    class FakeClient:
+        def get(self, url):
+            assert "hide-expired" not in url
+            return Response(status=200, url=url, text="")
+
+    monkeypatch.setattr(cli, "HttpClient", lambda: FakeClient())
+    monkeypatch.setattr(cli.parser, "parse_search", lambda _text, limit: leaked[:limit])
+
+    assert cli.cmd_search(_search_cli_args(include_expired=True)) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert {d["id"] for d in out["deals"]} == {"1", "2"}
+
+
 def test_apply_filters_only_with_code(parsed_search):
     out = _apply_filters(parsed_search, haendler=None, min_preis=None, max_preis=None,
                           min_temperatur=None, nur_aktiv=False, nur_mit_code=True)
