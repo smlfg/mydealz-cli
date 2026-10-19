@@ -292,3 +292,62 @@ def test_watch_state_file_permissions(tmp_path, monkeypatch):
     watch.save_state(state, str(state_file))
     mode = oct(state_file.stat().st_mode)[-3:]
     assert mode in ("600",)  # Modus strikt gesetzt (oder wie umask es erlaubt)
+
+
+def _watch_cli_args(**overrides):
+    import argparse
+
+    defaults = {
+        "q": "kindle",
+        "limit": 5,
+        "merchant": None,
+        "category": None,
+        "type": None,
+        "order": None,
+        "page": None,
+        "min_price": None,
+        "max_price": None,
+        "merchant_id": None,
+        "category_id": None,
+        "include_expired": False,
+        "only_active": False,
+        "min_temperature": None,
+        "only_with_code": False,
+        "dry_run": False,
+        "json": True,
+    }
+    defaults.update(overrides)
+    return argparse.Namespace(**defaults)
+
+
+def test_cmd_watch_persists_state_and_second_run_has_no_new(
+    tmp_path, monkeypatch, search_html, capsys,
+):
+    """Regression: save_state bekam None von update_state (CLI-Pfad)."""
+    from mydealz_cli import cli
+    from mydealz_cli.http_client import Response
+
+    config = tmp_path / "xdg"
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(config))
+
+    class FakeClient:
+        def get(self, url):
+            return Response(status=200, url=url, text=search_html)
+
+    monkeypatch.setattr(cli, "HttpClient", lambda: FakeClient())
+
+    args = _watch_cli_args()
+    assert cli.cmd_watch(args) == 0
+    state_file = config / "mydealz-cli" / "watch.json"
+    raw = state_file.read_text(encoding="utf-8")
+    assert raw.strip() != "null"
+    data = json.loads(raw)
+    assert data["version"] == 1
+    assert len(data["watches"]) >= 1
+
+    out1 = json.loads(capsys.readouterr().out)
+    assert out1["anzahl_neu"] == 5
+
+    assert cli.cmd_watch(args) == 0
+    out2 = json.loads(capsys.readouterr().out)
+    assert out2["anzahl_neu"] == 0
