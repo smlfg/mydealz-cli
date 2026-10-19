@@ -200,6 +200,75 @@ def parse_search_with_meta(html: str, *, limit: int = 20) -> dict:
     }
 
 
+def _extract_initial_state_json(html: str) -> Optional[dict]:
+    """Liest ``window.__INITIAL_STATE__`` aus eingebettetem Script."""
+    marker = "window.__INITIAL_STATE__"
+    idx = html.find(marker)
+    if idx < 0:
+        return None
+    start = html.find("{", idx)
+    if start < 0:
+        return None
+    depth = 0
+    in_str = False
+    escape = False
+    quote = ""
+    for i, ch in enumerate(html[start:], start):
+        if in_str:
+            if escape:
+                escape = False
+                continue
+            if ch == "\\":
+                escape = True
+                continue
+            if ch == quote:
+                in_str = False
+            continue
+        if ch in ('"', "'"):
+            in_str = True
+            quote = ch
+            continue
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                try:
+                    return json.loads(html[start : i + 1])
+                except json.JSONDecodeError:
+                    return None
+    return None
+
+
+def parse_thread_detail_dict(thread: dict, thread_id: str) -> dict:
+    """Normalisiert ``threadDetail`` aus ``__INITIAL_STATE__``."""
+    if not thread or str(thread.get("threadId")) != str(thread_id):
+        raise ParseError(f"threadDetail für Thread {thread_id} nicht gefunden.")
+    t = dict(thread)
+    if not t.get("mainGroup") and t.get("groups"):
+        default = next((g for g in t["groups"] if g.get("isDefault")), t["groups"][0])
+        t["mainGroup"] = default
+    ang = _coerce_thread_dict(t)
+    desc = t.get("descriptionPurified") or t.get("description")
+    if desc:
+        if isinstance(desc, str) and "<" in desc:
+            ang["beschreibung_text"] = _text(BeautifulSoup(desc, "lxml"))
+        else:
+            ang["beschreibung_text"] = str(desc).strip() or None
+    return ang
+
+
+def parse_detail_from_playwright_html(html: str, thread_id: str) -> dict:
+    """Parst eine (gerenderte) Detail-Seite über ``__INITIAL_STATE__.threadDetail``."""
+    state = _extract_initial_state_json(html)
+    if not state:
+        raise ParseError(
+            "Kein window.__INITIAL_STATE__ auf der Detail-Seite gefunden. "
+            "Seite evtl. nicht vollständig gerendert."
+        )
+    return parse_thread_detail_dict(state.get("threadDetail") or {}, thread_id)
+
+
 def parse_detail_from_html(html: str, thread_id: str) -> dict:
     """Versucht, eine Detail-Seite zu parsen.
 

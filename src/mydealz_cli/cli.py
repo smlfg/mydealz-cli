@@ -177,7 +177,7 @@ def cmd_show(args: argparse.Namespace) -> int:
     url = url_builder.deal_url(tid)
     if args.render == "playwright":
         try:
-            from . import detail_render  # noqa: WPS433
+            import playwright  # noqa: F401, WPS433
         except ImportError:
             _err(
                 "Playwright nicht installiert. 'pip install mydealz-cli[playwright]' "
@@ -185,6 +185,7 @@ def cmd_show(args: argparse.Namespace) -> int:
                 code=2,
                 kind="playwright_missing",
             )
+        from . import detail_render  # noqa: WPS433
         try:
             ang = detail_render.render_detail(url, tid)
         except Exception as e:  # noqa: BLE001
