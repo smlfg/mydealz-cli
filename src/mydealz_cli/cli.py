@@ -32,6 +32,11 @@ def _err(msg: str, *, code: int, **extra: Any) -> NoReturn:
     sys.exit(code)
 
 
+class _CliArgumentParser(argparse.ArgumentParser):
+    def error(self, message: str) -> NoReturn:
+        _err(message, code=1)
+
+
 # ---------- Filter / gemeinsame Logik ----------
 
 def _apply_filters(
@@ -347,8 +352,8 @@ def _add_search_filters(s: argparse.ArgumentParser) -> None:
     f.add_argument("--limit", type=int, default=20, help="Max. Anzahl Treffer (Default 20)")
 
 
-def _build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(
+def _build_parser() -> _CliArgumentParser:
+    p = _CliArgumentParser(
         prog="mydealz",
         description="mydealz – Agent-CLI für mydealz.de (Suche, Details, lokales Keyword-Watch).",
     )
@@ -384,8 +389,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser_ = _build_parser()
     args = parser_.parse_args(argv)
     if not getattr(args, "func", None):
-        parser_.print_help(sys.stderr)
-        return 1
+        _err("Kein Subbefehl angegeben (search, show, watch).", code=1)
     return args.func(args)
 
 
