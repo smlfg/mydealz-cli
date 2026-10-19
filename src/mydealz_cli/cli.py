@@ -176,10 +176,9 @@ def cmd_search(args: argparse.Namespace) -> int:
 
 def cmd_show(args: argparse.Namespace) -> int:
     try:
-        tid = parser.normalize_thread_id(args.deal)
+        tid, url = parser.resolve_deal_reference(args.deal)
     except ValueError as e:
         _err(str(e), code=1)
-    url = url_builder.deal_url(tid)
     if args.render == "playwright":
         try:
             from . import detail_render  # noqa: WPS433

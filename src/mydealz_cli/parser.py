@@ -255,3 +255,30 @@ def normalize_thread_id(s: str) -> str:
     if m:
         return m.group(1)
     raise ValueError(f"konnte keine Thread-ID aus {s!r} ableiten")
+
+
+def resolve_deal_reference(s: str) -> tuple[str, str]:
+    """Liefert ``(thread_id, fetch_url)`` für ``show`` und HTTP-GET.
+
+    mydealz antwortet auf GET ``/deals/<nur-id>`` mit HTTP 410; Slug-URLs
+    und ``/thread/<id>`` (Redirect auf die Slug-URL) funktionieren.
+    """
+    raw = (s or "").strip()
+    tid = normalize_thread_id(raw)
+    if raw.isdigit():
+        return tid, f"{_BASE}/thread/{tid}"
+
+    if "://" in raw:
+        from urllib.parse import urlparse
+        parsed = urlparse(raw)
+        path = (parsed.path or "").rstrip("/")
+        fetch_url = raw.split("#", 1)[0]
+    else:
+        path = raw.rstrip("/")
+        fetch_url = f"{_BASE}{path}" if path.startswith("/") else None
+
+    slug_path_re = re.compile(rf"^/deals/.+-{tid}$")
+    if slug_path_re.match(path):
+        return tid, fetch_url or f"{_BASE}{path}"
+
+    return tid, f"{_BASE}/thread/{tid}"

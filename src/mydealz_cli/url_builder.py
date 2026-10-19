@@ -207,7 +207,10 @@ def build_search_url(
 
 
 def deal_url(thread_id: str) -> str:
-    """Baut die kanonische Deal-URL aus einer numerischen Thread-ID."""
+    """Legacy-Hilfs-URL (nur ID im Pfad). Nicht für HTTP-GET verwenden — 410.
+
+    Zum Laden von Deals ``parser.resolve_deal_reference`` nutzen.
+    """
     return f"{BASE}/deals/{thread_id}"
 
 
