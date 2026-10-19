@@ -149,6 +149,50 @@ def test_normalize_thread_id():
         parser.normalize_thread_id("foo")
 
 
+def test_resolve_deal_reference_bare_id_uses_thread_redirect():
+    tid, url = parser.resolve_deal_reference("2853300")
+    assert tid == "2853300"
+    assert url == "https://www.mydealz.de/thread/2853300"
+
+
+def test_resolve_deal_reference_preserves_slug_url():
+    slug = (
+        "https://www.mydealz.de/deals/gigabyte-mo27q28gr-gaming-monitor-"
+        "27-zoll-wqhd-woled-280-hz-003-ms-kvm-2853133"
+    )
+    tid, url = parser.resolve_deal_reference(slug)
+    assert tid == "2853133"
+    assert url == slug
+
+
+def test_resolve_deal_reference_bare_deals_url_uses_thread_redirect():
+    tid, url = parser.resolve_deal_reference("https://www.mydealz.de/deals/2853300")
+    assert tid == "2853300"
+    assert url == "https://www.mydealz.de/thread/2853300"
+
+
+def test_cmd_show_fetches_thread_url_not_bare_deals_id(
+    monkeypatch, detail_html, capsys,
+):
+    """Regression #6: GET /deals/<id> liefert 410; /thread/<id> funktioniert."""
+    import argparse
+
+    from mydealz_cli import cli
+    from mydealz_cli.http_client import Response
+
+    requested: list[str] = []
+
+    class FakeClient:
+        def get(self, url):
+            requested.append(url)
+            return Response(status=200, url=url, text=detail_html)
+
+    monkeypatch.setattr(cli, "HttpClient", lambda: FakeClient())
+    args = argparse.Namespace(deal="2853300", render="auto", json=True)
+    assert cli.cmd_show(args) == 0
+    assert requested == ["https://www.mydealz.de/thread/2853300"]
+
+
 # ---------- Parser (echte HTML-Fixtures) ----------
 
 def test_parse_search_returns_deals(parsed_search):
