@@ -275,21 +275,23 @@ def cmd_watch(args: argparse.Namespace) -> int:
     new_items, current_ids = watch.diff_for_query(
         state, query=args.q, items=items, extra_filters=filters,
     )
-    watch.update_state(state, query=args.q, ids=current_ids, extra_filters=filters)
-    state_path_written = watch.save_state(state, state_path)
+    if args.dry_run:
+        state_path_written = state_path
+        hinweis = "Dry-Run: State wurde nicht aktualisiert."
+    else:
+        watch.update_state(state, query=args.q, ids=current_ids, extra_filters=filters)
+        state_path_written = watch.save_state(state, state_path)
+        hinweis = None
     payload = {
         "quelle": "https://www.mydealz.de",
         "url": url,
         "filter": filters,
-        "hinweis": None,
+        "hinweis": hinweis,
         "anzahl_neu": len(new_items),
         "anzahl_aktuell": len(current_ids),
         "neue_deals": new_items,
         "state_datei": state_path_written,
     }
-    if args.dry_run:
-        # Kein State schreiben, nur melden, was neu wäre
-        payload["hinweis"] = "Dry-Run: State wurde nicht aktualisiert."
     _emit(payload, args.json)
     return 0
 
