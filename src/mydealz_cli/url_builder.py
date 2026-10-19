@@ -10,8 +10,9 @@ Unterstützte Query-Parameter:
 * ``type`` – ``deal`` (Default), ``voucher`` (nur Gutscheine),
   ``coupon`` (US-Name, identisch zu voucher), ``freebie``,
   ``groupdeal``.
-* ``order`` – ``newest``, ``hot`` (Standard), ``trending``,
-  ``most-discussed``, ``price-low``, ``price-high``.
+* ``sortBy`` – mydealz-Sortierschlüssel (CLI ``--order`` mappt darauf):
+  ``new`` (neueste), ``temp`` (heiß), ``discussion`` (diskutiert),
+  ``lowest_price`` / ``highest_price``.
 * ``hide-expired`` – ``1`` / ``0``.
 * ``page`` – Pagination, Default 1.
 * ``min-price`` / ``max-price`` – in Euro, ganzzahlig.
@@ -78,13 +79,14 @@ CATEGORIES: dict[str, dict] = {
 }
 
 
+# CLI-Wert (--order) → mydealz ``sortBy``-Key (Live-SSR-Konfiguration).
 ORDERS: dict[str, str] = {
-    "newest": "newest",
-    "hot": "hot",
-    "trending": "trending",
-    "discussed": "most-discussed",
-    "price-low": "price-low",
-    "price-high": "price-high",
+    "newest": "new",
+    "hot": "temp",
+    "discussed": "discussion",
+    "most-discussed": "discussion",
+    "price-low": "lowest_price",
+    "price-high": "highest_price",
 }
 
 
@@ -174,7 +176,7 @@ def build_search_url(
     if deal_type:
         params.append(("type", _normalize_type(deal_type)))
     if order:
-        params.append(("order", _normalize_order(order)))
+        params.append(("sortBy", _normalize_order(order)))
     if page and page > 1:
         params.append(("page", str(page)))
     if min_price is not None:
@@ -192,8 +194,8 @@ def build_search_url(
         params.append(("hide-upcoming", "1"))
     # min-temperature wird clientseitig angewendet (kein URL-Support).
     from urllib.parse import urlencode
-    # Stichwort und Filter (type, order, …) müssen über /search laufen;
-    # auf / ignoriert mydealz q sowie type/order/page/Preisfilter.
+    # Stichwort und Filter (type, sortBy, …) müssen über /search laufen;
+    # auf / ignoriert mydealz q sowie type/sortBy/page/Preisfilter.
     has_search_path = bool(query) or bool(deal_type) or bool(order) or (
         page and page > 1
     ) or min_price is not None or max_price is not None or (
