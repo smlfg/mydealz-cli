@@ -144,7 +144,9 @@ Such-Filter (alle optional, kombinierbar):
     --category-id N             direkte Kategorie-ID
     --only-active               nur laufende, nicht abgelaufene Deals
     --only-with-code            nur Deals mit Gutscheincode
-    --include-expired           abgelaufene Deals einschließen
+    --include-expired           abgelaufene Deals einschließen (Default: ausgeblendet;
+                                zusätzlicher clientseitiger Filter über ist_aktiv, falls
+                                mydealz trotz hide-expired=1 abgelaufene Treffer liefert)
     --min-temperature N         nur Deals mit Temperatur >= N (Hotness)
     --limit N                   max. Anzahl Treffer (Default 20)
 
