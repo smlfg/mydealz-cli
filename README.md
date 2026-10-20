@@ -141,7 +141,7 @@ Such-Filter (alle optional, kombinierbar):
     --merchant KURZNAME         z. B. amazon, ebay, mediamarkt
     --merchant-id N             direkte mydealz-Händler-ID
     --category SLUG             z. B. elektronik, computer, games
-    --category-id N             direkte Kategorie-ID
+    --category-id N             direkte Kategorie-ID (clientseitig; mydealz ignoriert group-id in /search)
     --only-active               nur laufende, nicht abgelaufene Deals
     --only-with-code            nur Deals mit Gutscheincode
     --include-expired           abgelaufene Deals einschließen
