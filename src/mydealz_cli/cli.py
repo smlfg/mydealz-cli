@@ -43,6 +43,7 @@ def _apply_filters(
     items: list[dict],
     *,
     haendler: Optional[str],
+    kategorie_id: Optional[int] = None,
     min_preis: Optional[float],
     max_preis: Optional[float],
     min_temperatur: Optional[float],
@@ -56,6 +57,11 @@ def _apply_filters(
             i for i in out
             if (i.get("haendler", {}).get("name") or "").lower() == sl
             or (i.get("haendler", {}).get("slug") or "").lower() == sl
+        ]
+    if kategorie_id is not None:
+        out = [
+            i for i in out
+            if (i.get("kategorie") or {}).get("id") == kategorie_id
         ]
     if min_preis is not None:
         out = [i for i in out if i["preis_eur"] is None or i["preis_eur"] >= min_preis]
@@ -114,9 +120,8 @@ def cmd_search(args: argparse.Namespace) -> int:
                 code=1,
             )
 
-    # Händler-/Kategorie-Filter wirken LOKAL auf den geparsten Treffern.
-    # Die numerische mydealz-ID ist nicht stabil genug, um sie in der
-    # URL zu setzen; mydealz' UI nutzt dafür JS-Routing.
+    # Slug-Filter (Händler/Kategorie) und --category-id wirken lokal;
+    # mydealz ignoriert group-id in der Such-URL.
     url = url_builder.build_search_url(
         query=args.q,
         deal_type=args.type,
@@ -137,15 +142,20 @@ def cmd_search(args: argparse.Namespace) -> int:
     if r.status >= 400:
         _err(f"HTTP {r.status} beim Laden der Suche", code=3, status=r.status, url=url)
     try:
-        # großzügig parsen, damit Client-Filter (Händler, Kategorie, …)
-        # nach dem Filtern noch echte Treffer übrig haben
-        parse_limit = max(args.limit or 20, 50)
+        # großzügig parsen, damit Client-Filter nach dem Filtern noch Treffer liefern
+        needs_local_filter = (
+            (merchant_obj and not args.merchant_id)
+            or (category_obj and not args.category_id)
+            or args.category_id is not None
+        )
+        parse_limit = max(args.limit or 20, 100 if needs_local_filter else 50)
         items = parser.parse_search(r.text, limit=parse_limit)
     except ParseError as e:
         _err(f"Parse-Fehler: {e}", code=4, url=url)
     items = _apply_filters(
         items,
         haendler=(merchant_obj.get("name") if merchant_obj else None),
+        kategorie_id=args.category_id,
         min_preis=args.min_price,
         max_preis=args.max_price,
         min_temperatur=args.min_temperature,
@@ -154,17 +164,26 @@ def cmd_search(args: argparse.Namespace) -> int:
     )
     if args.limit:
         items = items[: args.limit]
+    slug_filter = (merchant_obj or category_obj) and not (
+        args.merchant_id or args.category_id
+    )
+    hinweis = None
+    if slug_filter:
+        hinweis = (
+            "Händler-/Kategorie-Filter werden lokal auf den "
+            "Server-Treffern angewendet, da mydealz' numerische IDs "
+            "instabil sind."
+        )
+    elif args.category_id is not None:
+        hinweis = (
+            "Kategorie-ID-Filter wird lokal auf den Server-Treffern "
+            "angewendet; mydealz ignoriert group-id in der Such-URL."
+        )
     payload = {
         "quelle": "https://www.mydealz.de",
         "url": url,
         "filter": _build_filters_dict(args),
-        "hinweis": (
-            "Händler-/Kategorie-Filter werden lokal auf den "
-            "Server-Treffern angewendet, da mydealz' numerische IDs "
-            "instabil sind."
-            if (merchant_obj or category_obj) and not (args.merchant_id or args.category_id)
-            else None
-        ),
+        "hinweis": hinweis,
         "anzahl": len(items),
         "deals": items,
     }
@@ -269,6 +288,7 @@ def cmd_watch(args: argparse.Namespace) -> int:
     items = _apply_filters(
         items,
         haendler=(merchant_obj.get("name") if merchant_obj else None),
+        kategorie_id=args.category_id,
         min_preis=args.min_price,
         max_preis=args.max_price,
         min_temperatur=args.min_temperature,

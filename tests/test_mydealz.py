@@ -108,7 +108,6 @@ def test_build_search_url_filters():
         "min-price=200",
         "max-price=500",
         "merchant-id=77",
-        "group-id=43",
         "order=hot",
         "page=2",
     ]:
@@ -210,6 +209,28 @@ def test_apply_filters_by_merchant(parsed_search):
     out = _apply_filters(parsed_search, haendler="Amazon", min_preis=None, max_preis=None,
                           min_temperatur=None, nur_aktiv=False, nur_mit_code=False)
     assert all(o["haendler"]["name"] == "Amazon" for o in out)
+
+
+def test_apply_filters_by_category_id(parsed_search):
+    out = _apply_filters(
+        parsed_search,
+        haendler=None,
+        kategorie_id=2,
+        min_preis=None,
+        max_preis=None,
+        min_temperatur=None,
+        nur_aktiv=False,
+        nur_mit_code=False,
+    )
+    assert out, "Fixture enthält Deals mit kategorie.id=2"
+    assert all((o.get("kategorie") or {}).get("id") == 2 for o in out)
+    assert len(out) == 4
+
+
+def test_build_search_url_omits_ignored_group_id():
+    u = url_builder.build_search_url(query="monitor", category_id=43)
+    assert "group-id" not in u
+    assert "/search?" in u
 
 
 def test_apply_filters_by_min_price(parsed_search):

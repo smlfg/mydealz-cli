@@ -16,7 +16,9 @@ Unterstützte Query-Parameter:
 * ``page`` – Pagination, Default 1.
 * ``min-price`` / ``max-price`` – in Euro, ganzzahlig.
 * ``merchant-id`` – mydealz-Interne Händler-ID.
-* ``group-id`` – mydealz-Interne Kategorie-ID.
+
+``group-id`` in der Such-URL wird von mydealz ignoriert; Kategorie-IDs
+filtert das CLI clientseitig über ``kategorie.id`` in den Treffern.
 
 Hinweis: früher wurde die Startseite (``/``) als Such-URL
 verwendet. Das war falsch – mydealz ignoriert dort den
@@ -183,8 +185,6 @@ def build_search_url(
         params.append(("max-price", str(int(max_price))))
     if merchant_id is not None:
         params.append(("merchant-id", str(merchant_id)))
-    if category_id is not None:
-        params.append(("group-id", str(category_id)))
     if hide_expired:
         params.append(("hide-expired", "1"))
     if only_active:
