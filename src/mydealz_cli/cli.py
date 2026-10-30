@@ -72,6 +72,105 @@ class _CliArgumentParser(argparse.ArgumentParser):
         _err(message, code=1)
 
 
+# ---------- menschliche (lesbare) Ausgabe ----------
+
+def _should_be_human(json_flag: bool) -> bool:
+    """Lesbar nur am Terminal und ohne --json; Piped bleibt JSON."""
+    return not json_flag and _stdout_is_tty()
+
+
+def _fmt_eur(v: Any) -> Optional[str]:
+    if v is None:
+        return None
+    if v == 0:
+        return "Gratis"
+    s = f"{v:,.2f}".replace(",", "\x00").replace(".", ",").replace("\x00", ".")
+    return s + " €"
+
+
+def _fmt_temp(v: Any) -> Optional[str]:
+    if v is None:
+        return None
+    try:
+        return f"{int(round(float(v)))}°"
+    except (TypeError, ValueError):
+        return None
+
+
+def _haendler_kurz(i: dict) -> str:
+    h = i.get("haendler") or {}
+    return (
+        h.get("name")
+        or h.get("slug")
+        or h.get("domain")
+        or "—"
+    )
+
+
+def _deal_line(i: dict, idx: int) -> str:
+    head = f"[{idx}]"
+    preis = _fmt_eur(i.get("preis_eur"))
+    if preis:
+        if i.get("vorher_eur"):
+            head += f" {preis} (statt {_fmt_eur(i['vorher_eur'])})"
+        else:
+            head += f" {preis}"
+    parts = [head, i.get("titel") or "(ohne Titel)", _haendler_kurz(i)]
+    temp = _fmt_temp(i.get("temperatur"))
+    if temp:
+        parts.append(temp)
+    if i.get("gutschein_code"):
+        parts.append(f"Code {i['gutschein_code']}")
+    parts.append(f"ID {i.get('id')}")
+    return " | ".join(parts)
+
+
+def _print_search_human(payload: dict) -> None:
+    sys.stdout.write(f"{payload['anzahl']} Treffer · {payload['url']}\n")
+    for idx, deal in enumerate(payload["deals"], start=1):
+        sys.stdout.write(f" {_deal_line(deal, idx)}\n")
+    if payload.get("hinweis"):
+        sys.stdout.write(f"Hinweis: {payload['hinweis']}\n")
+    sys.stdout.flush()
+
+
+def _print_show_human(deal: dict) -> None:
+    sys.stdout.write(f"{deal.get('titel') or '(ohne Titel)'}\n")
+    rows: list[tuple[str, str]] = []
+    preis = _fmt_eur(deal.get("preis_eur"))
+    if preis:
+        if deal.get("vorher_eur"):
+            preis += f" (statt {_fmt_eur(deal['vorher_eur'])})"
+        rows.append(("Preis", preis))
+    if deal.get("id"):
+        rows.append(("ID", str(deal["id"])))
+    if deal.get("url"):
+        rows.append(("Deal-URL", str(deal["url"])))
+    for key, label in (("beschreibung_text", "Beschreibung"), ("hinweis", "Hinweis")):
+        if deal.get(key):
+            rows.append((label, str(deal[key])))
+    for label, value in rows:
+        sys.stdout.write(f"{label}: {value}\n")
+    sys.stdout.flush()
+
+
+def _print_watch_human(payload: dict) -> None:
+    n = payload["anzahl_neu"]
+    filt = payload.get("filter") or {}
+    q = filt.get("q") or "(ohne Stichwort)"
+    sys.stdout.write(
+        f"{n} neue Deal(s) für {q!r} "
+        f"(gemerkt: {payload['anzahl_aktuell']})\n"
+    )
+    for idx, deal in enumerate(payload["neue_deals"], start=1):
+        sys.stdout.write(f" {_deal_line(deal, idx)}\n")
+    if payload.get("hinweis"):
+        sys.stdout.write(f"Hinweis: {payload['hinweis']}\n")
+    if payload.get("state_datei"):
+        sys.stdout.write(f"State-Datei: {payload['state_datei']}\n")
+    sys.stdout.flush()
+
+
 # ---------- Filter / gemeinsame Logik ----------
 
 def _apply_filters(
@@ -230,7 +329,10 @@ def cmd_search(args: argparse.Namespace) -> int:
         "anzahl": len(items),
         "deals": items,
     }
-    _emit(payload, args.json)
+    if _should_be_human(args.json):
+        _print_search_human(payload)
+    else:
+        _emit(payload, args.json)
     return 0
 
 
@@ -256,7 +358,10 @@ def cmd_show(args: argparse.Namespace) -> int:
             ang = detail_render.render_detail(url, tid)
         except Exception as e:  # noqa: BLE001
             _err(f"Playwright-Render fehlgeschlagen: {e}", code=3)
-        _emit({"quelle": "https://www.mydealz.de", "deal": ang}, args.json)
+        if _should_be_human(args.json):
+            _print_show_human(ang)
+        else:
+            _emit({"quelle": "https://www.mydealz.de", "deal": ang}, args.json)
         return 0
     # Default: requests, og:* Fallback
     http = HttpClient()
@@ -272,7 +377,10 @@ def cmd_show(args: argparse.Namespace) -> int:
         _err(f"Parse-Fehler: {e}", code=4, url=url)
     if not ang.get("url"):
         ang["url"] = r.url
-    _emit({"quelle": "https://www.mydealz.de", "deal": ang}, args.json)
+    if _should_be_human(args.json):
+        _print_show_human(ang)
+    else:
+        _emit({"quelle": "https://www.mydealz.de", "deal": ang}, args.json)
     return 0
 
 
@@ -365,6 +473,9 @@ def cmd_watch(args: argparse.Namespace) -> int:
         "neue_deals": new_items,
         "state_datei": state_path_written,
     }
+    if _should_be_human(args.json):
+        _print_watch_human(payload)
+        return 0
     _emit(payload, args.json)
     return 0
 
