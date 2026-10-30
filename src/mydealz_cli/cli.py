@@ -22,11 +22,43 @@ from . import __version__, parser, url_builder, watch
 from .http_client import HTTPError, HttpClient, ParseError
 
 
+def _argv_wants_json() -> bool:
+    """True, wenn --json explizit auf der Kommandozeile steht."""
+    return "--json" in sys.argv
+
+
+def _stdout_is_tty() -> bool:
+    try:
+        return sys.stdout.isatty()
+    except (AttributeError, ValueError):
+        return False
+
+
+def _stderr_is_tty() -> bool:
+    try:
+        return sys.stderr.isatty()
+    except (AttributeError, ValueError):
+        return False
+
+
+def _human_out() -> bool:
+    """Lesbare Ausgabe nur an einem Terminal und ohne --json."""
+    return _stdout_is_tty() and not _argv_wants_json()
+
+
+def _human_err() -> bool:
+    """Lesbare Fehler nur an einem Terminal und ohne --json."""
+    return _stderr_is_tty() and not _argv_wants_json()
+
+
 def _emit(payload: Any, as_json: bool) -> None:
     sys.stdout.write(json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
 
 
 def _err(msg: str, *, code: int, **extra: Any) -> NoReturn:
+    if _human_err():
+        sys.stderr.write(f"mydealz: Fehler: {msg}\n")
+        sys.exit(code)
     payload = {"error": msg, **extra}
     sys.stderr.write(json.dumps(payload, ensure_ascii=False) + "\n")
     sys.exit(code)
@@ -34,6 +66,9 @@ def _err(msg: str, *, code: int, **extra: Any) -> NoReturn:
 
 class _CliArgumentParser(argparse.ArgumentParser):
     def error(self, message: str) -> NoReturn:
+        if _human_err():
+            # Terminal: normale argparse-Usage statt JSON.
+            super().error(message)
         _err(message, code=1)
 
 
@@ -97,7 +132,15 @@ def _build_filters_dict(args: argparse.Namespace) -> dict:
 
 # ---------- search ----------
 
+def _resolve_query(args: argparse.Namespace) -> None:
+    """STICHWORT-Positional als Kurzform für --query (Flag gewinnt)."""
+    pos = getattr(args, "stichwort", None)
+    if pos and not args.q:
+        args.q = " ".join(pos) if isinstance(pos, list) else pos
+
+
 def cmd_search(args: argparse.Namespace) -> int:
+    _resolve_query(args)
     merchant_obj = None
     if args.merchant:
         merchant_obj = url_builder.resolve_merchant(args.merchant)
@@ -236,9 +279,14 @@ def cmd_show(args: argparse.Namespace) -> int:
 # ---------- watch ----------
 
 def cmd_watch(args: argparse.Namespace) -> int:
+    _resolve_query(args)
     # Pflicht: --query (oder --q)
     if not args.q:
-        _err("--query ist erforderlich", code=1)
+        _err(
+            "Stichwort fehlt. Nutzbar als: mydealz watch \"switch 2\" "
+            "oder mydealz watch --query \"switch 2\".",
+            code=1,
+        )
     state_path = watch.state_path()
     state = watch.load_state(state_path)
     filters = _build_filters_dict(args)
@@ -324,8 +372,16 @@ def cmd_watch(args: argparse.Namespace) -> int:
 # ---------- Argparse ----------
 
 def _add_search_filters(s: argparse.ArgumentParser) -> None:
+    s.add_argument(
+        "stichwort",
+        nargs="*",
+        metavar="STICHWORT",
+        default=None,
+        help="Suchbegriff (Kurzform für --query), z.B. mydealz search airpods",
+    )
     f = s.add_argument_group("Such-Filter")
-    f.add_argument("--query", dest="q", default=None, help="Stichwort")
+    f.add_argument("--query", dest="q", default=None,
+                   help="Stichwort (alternativ: STICHWORT direkt angeben)")
     f.add_argument(
         "--type",
         choices=["deal", "coupon", "voucher", "freebie", "groupdeal"],
@@ -407,10 +463,31 @@ def _build_parser() -> _CliArgumentParser:
 
 def main(argv: Optional[list[str]] = None) -> int:
     parser_ = _build_parser()
-    args = parser_.parse_args(argv)
+    try:
+        args = parser_.parse_args(argv)
+    except KeyboardInterrupt:
+        if _human_err():
+            sys.stderr.write("\nAbgebrochen.\n")
+            return 130
+        _err("Abgebrochen (KeyboardInterrupt)", code=130)
+    # Kein Subbefehl:
     if not getattr(args, "func", None):
+        if _human_err():
+            parser_.print_usage(sys.stderr)
+            sys.stderr.write(
+                "mydealz: Fehler: Kein Subbefehl angegeben. "
+                "Beispiele: mydealz search airpods | mydealz show <id> "
+                "| mydealz watch \"switch 2\"\n"
+            )
+            return 2
         _err("Kein Subbefehl angegeben (search, show, watch).", code=1)
-    return args.func(args)
+    try:
+        return args.func(args)
+    except (KeyboardInterrupt, EOFError):
+        if _human_err():
+            sys.stderr.write("\nAbgebrochen.\n")
+            return 130
+        _err("Abgebrochen (KeyboardInterrupt/EOF)", code=130)
 
 
 if __name__ == "__main__":
