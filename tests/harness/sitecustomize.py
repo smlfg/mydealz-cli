@@ -2,7 +2,10 @@
 
 Wird automatisch geladen, weil PYTHONPATH auf dieses Verzeichnis zeigt. Erlaubt nur
 Loopback-Verbindungen (127.0.0.1, ::1, localhost). Jeder andere Verbindungs- oder
-DNS-Versuch wird blockiert und in $ACCEPTANCE_NET_LOG protokolliert.
+DNS-Versuch wird blockiert (ConnectionRefusedError) und in $ACCEPTANCE_NET_LOG
+protokolliert, damit der Test fehlschlägt. So kann eine Implementierung, die die
+Test-Konfiguration ignoriert und auf die echten HHN-Defaults zurückfällt,
+niemals echte Server kontaktieren.
 """
 
 import os
