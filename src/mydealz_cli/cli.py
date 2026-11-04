@@ -280,9 +280,20 @@ def cmd_search(args: argparse.Namespace) -> int:
     try:
         r = http.get(url)
     except HTTPError as e:
-        _err(f"HTTP-Fehler: {e}", code=3, url=url)
+        _err(
+            f"Netzwerkfehler beim Laden der Suche: {e}. "
+            "Nächster Schritt: Internetverbindung prüfen oder später erneut versuchen.",
+            code=3,
+            url=url,
+        )
     if r.status >= 400:
-        _err(f"HTTP {r.status} beim Laden der Suche", code=3, status=r.status, url=url)
+        _err(
+            f"HTTP {r.status} beim Laden der Suche. "
+            "Nächster Schritt: Filter prüfen oder später erneut versuchen.",
+            code=3,
+            status=r.status,
+            url=url,
+        )
     try:
         # großzügig parsen, damit Client-Filter nach dem Filtern noch Treffer liefern
         needs_local_filter = (
@@ -293,7 +304,12 @@ def cmd_search(args: argparse.Namespace) -> int:
         parse_limit = max(args.limit or 20, 100 if needs_local_filter else 50)
         items = parser.parse_search(r.text, limit=parse_limit)
     except ParseError as e:
-        _err(f"Parse-Fehler: {e}", code=4, url=url)
+        _err(
+            f"Parse-Fehler: {e}. "
+            "Nächster Schritt: mydealz search erneut versuchen oder Markup-Änderung melden.",
+            code=4,
+            url=url,
+        )
     items = _apply_filters(
         items,
         haendler=(merchant_obj.get("name") if merchant_obj else None),
@@ -322,7 +338,7 @@ def cmd_search(args: argparse.Namespace) -> int:
             "angewendet; mydealz ignoriert group-id in der Such-URL."
         )
     payload = {
-        "quelle": "https://www.mydealz.de",
+        "quelle": url_builder.base_url(),
         "url": url,
         "filter": _build_filters_dict(args),
         "hinweis": hinweis,
@@ -361,26 +377,43 @@ def cmd_show(args: argparse.Namespace) -> int:
         if _should_be_human(args.json):
             _print_show_human(ang)
         else:
-            _emit({"quelle": "https://www.mydealz.de", "deal": ang}, args.json)
+            _emit({"quelle": url_builder.base_url(), "deal": ang}, args.json)
         return 0
     # Default: requests, og:* Fallback
     http = HttpClient()
     try:
         r = http.get(url)
     except HTTPError as e:
-        _err(f"HTTP-Fehler: {e}", code=3, url=url)
+        _err(
+            f"Netzwerkfehler beim Laden des Deals: {e}. "
+            "Nächster Schritt: Internetverbindung prüfen oder später erneut versuchen.",
+            code=3,
+            url=url,
+        )
     if r.status >= 400:
-        _err(f"HTTP {r.status} beim Laden des Deals", code=3, status=r.status, url=url)
+        _err(
+            f"HTTP {r.status} beim Laden des Deals. "
+            "Nächster Schritt: ID/URL prüfen oder den Deal per search suchen.",
+            code=3,
+            status=r.status,
+            url=url,
+        )
     try:
         ang = parser.parse_detail_from_html(r.text, tid)
     except ParseError as e:
-        _err(f"Parse-Fehler: {e}", code=4, url=url)
+        _err(
+            f"Parse-Fehler: {e} "
+            "Nächster Schritt: mydealz search <stichwort> nutzen oder "
+            "Playwright installieren (--render playwright).",
+            code=4,
+            url=url,
+        )
     if not ang.get("url"):
         ang["url"] = r.url
     if _should_be_human(args.json):
         _print_show_human(ang)
     else:
-        _emit({"quelle": "https://www.mydealz.de", "deal": ang}, args.json)
+        _emit({"quelle": url_builder.base_url(), "deal": ang}, args.json)
     return 0
 
 
@@ -433,14 +466,30 @@ def cmd_watch(args: argparse.Namespace) -> int:
     try:
         r = http.get(url)
     except HTTPError as e:
-        _err(f"HTTP-Fehler: {e}", code=3, url=url)
+        _err(
+            f"Netzwerkfehler beim Laden der Suche: {e}. "
+            "Nächster Schritt: Internetverbindung prüfen oder später erneut versuchen.",
+            code=3,
+            url=url,
+        )
     if r.status >= 400:
-        _err(f"HTTP {r.status} beim Laden der Suche", code=3, status=r.status, url=url)
+        _err(
+            f"HTTP {r.status} beim Laden der Suche. "
+            "Nächster Schritt: Filter prüfen oder später erneut versuchen.",
+            code=3,
+            status=r.status,
+            url=url,
+        )
     try:
         parse_limit = max(args.limit or 50, 100)
         items = parser.parse_search(r.text, limit=parse_limit)
     except ParseError as e:
-        _err(f"Parse-Fehler: {e}", code=4, url=url)
+        _err(
+            f"Parse-Fehler: {e}. "
+            "Nächster Schritt: mydealz watch erneut versuchen oder Markup-Änderung melden.",
+            code=4,
+            url=url,
+        )
     items = _apply_filters(
         items,
         haendler=(merchant_obj.get("name") if merchant_obj else None),
@@ -464,7 +513,7 @@ def cmd_watch(args: argparse.Namespace) -> int:
         state_path_written = watch.save_state(state, state_path)
         hinweis = None
     payload = {
-        "quelle": "https://www.mydealz.de",
+        "quelle": url_builder.base_url(),
         "url": url,
         "filter": filters,
         "hinweis": hinweis,
@@ -599,6 +648,14 @@ def main(argv: Optional[list[str]] = None) -> int:
             sys.stderr.write("\nAbgebrochen.\n")
             return 130
         _err("Abgebrochen (KeyboardInterrupt/EOF)", code=130)
+    except ValueError as e:
+        _err(str(e), code=1)
+    except Exception as e:  # noqa: BLE001 – nie Tracebacks nach außen
+        _err(
+            f"Unerwarteter Fehler: {e}. "
+            "Nächster Schritt: Aufruf mit --help prüfen oder Fehler melden.",
+            code=3,
+        )
 
 
 if __name__ == "__main__":

@@ -93,7 +93,22 @@ class HttpClient:
         self._session.headers["Accept-Encoding"] = "gzip, deflate"
         if min_interval_s is None:
             env = os.environ.get("MDZ_MIN_INTERVAL_MS")
-            min_interval_s = (int(env) / 1000.0) if env else 1.0
+            if env is None or not env.strip():
+                min_interval_s = 1.0
+            else:
+                try:
+                    min_interval_s = int(env) / 1000.0
+                except ValueError:
+                    raise ValueError(
+                        f"Ungültige MDZ_MIN_INTERVAL_MS={env!r}: erwartet wird eine "
+                        "ganze Zahl in Millisekunden (z. B. 1000). "
+                        "Nächster Schritt: MDZ_MIN_INTERVAL_MS korrigieren oder entfernen."
+                    ) from None
+                if min_interval_s < 0:
+                    raise ValueError(
+                        f"Ungültige MDZ_MIN_INTERVAL_MS={env!r}: darf nicht negativ sein. "
+                        "Nächster Schritt: MDZ_MIN_INTERVAL_MS korrigieren oder entfernen."
+                    )
         self._limiter = _RateLimiter(min_interval_s)
 
     def get(self, url: str, *, allow_redirects: bool = True, _retries: int = 1) -> Response:

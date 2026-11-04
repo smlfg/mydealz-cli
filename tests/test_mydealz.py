@@ -154,6 +154,31 @@ def test_deal_url():
     assert url_builder.deal_url("2853300") == "https://www.mydealz.de/deals/2853300"
 
 
+def test_base_url_env_overrides_all_builders(monkeypatch):
+    monkeypatch.setenv("MYDEALZ_BASE_URL", "http://127.0.0.1:8765/")
+    assert url_builder.base_url() == "http://127.0.0.1:8765"
+    assert url_builder.build_search_url(query="airpods").startswith(
+        "http://127.0.0.1:8765/search?"
+    )
+    assert url_builder.deal_url("2853300") == (
+        "http://127.0.0.1:8765/deals/2853300"
+    )
+
+
+def test_base_url_env_invalid_raises_clean_error(monkeypatch):
+    monkeypatch.setenv("MYDEALZ_BASE_URL", "localhost:8765")
+    with pytest.raises(ValueError) as exc:
+        url_builder.base_url()
+    assert "MYDEALZ_BASE_URL" in str(exc.value)
+    assert "Nächster Schritt" in str(exc.value)
+
+
+def test_watch_state_env_overrides_xdg(monkeypatch, tmp_path):
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg"))
+    monkeypatch.setenv("MYDEALZ_WATCH_STATE", str(tmp_path / "custom" / "state.json"))
+    assert watch.state_path() == str(tmp_path / "custom" / "state.json")
+
+
 def test_normalize_thread_id():
     assert parser.normalize_thread_id("2853300") == "2853300"
     assert parser.normalize_thread_id("https://www.mydealz.de/deals/foo-2853300") == "2853300"

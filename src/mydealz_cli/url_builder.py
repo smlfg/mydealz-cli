@@ -27,9 +27,37 @@ verwendet. Das war falsch – mydealz ignoriert dort den
 
 from __future__ import annotations
 
-from typing import Iterable, Optional
+import os
+from typing import Optional
+from urllib.parse import urlsplit
 
 BASE = "https://www.mydealz.de"
+BASE_URL_ENV = "MYDEALZ_BASE_URL"
+
+
+def base_url() -> str:
+    """Basis-URL aus ``MYDEALZ_BASE_URL`` oder der Standard-Host.
+
+    Nur absolute ``http``/``https``-URLs ohne Query/Fragment sind erlaubt.
+    Ein abschließender Schrägstrich wird entfernt, damit beim Bauen kein
+    doppelter Slash entsteht.
+    """
+    raw = (os.environ.get(BASE_URL_ENV) or "").strip()
+    if not raw:
+        return BASE
+    parts = urlsplit(raw)
+    if parts.scheme not in ("http", "https") or not parts.netloc:
+        raise ValueError(
+            f"Ungültige {BASE_URL_ENV}={raw!r}: erwartet wird eine absolute "
+            "http(s)-URL wie https://www.mydealz.de. "
+            f"Nächster Schritt: {BASE_URL_ENV} korrigieren oder entfernen."
+        )
+    if parts.query or parts.fragment:
+        raise ValueError(
+            f"Ungültige {BASE_URL_ENV}={raw!r}: Query/Fragment sind nicht erlaubt. "
+            f"Nächster Schritt: {BASE_URL_ENV} korrigieren oder entfernen."
+        )
+    return raw.rstrip("/")
 
 
 # Bekannte mydealz-Händler-Kurznamen → Anzeige-Namen.
@@ -200,17 +228,18 @@ def build_search_url(
         merchant_id is not None
     ) or category_id is not None or only_active
     qs = urlencode(params)
+    base = base_url()
     if has_search_path:
-        return f"{BASE}/search?{qs}"
-    return f"{BASE}/?{qs}" if qs else BASE
+        return f"{base}/search?{qs}"
+    return f"{base}/?{qs}" if qs else base
 
 
 def deal_url(thread_id: str) -> str:
     """Baut die kanonische Deal-URL aus einer numerischen Thread-ID."""
-    return f"{BASE}/deals/{thread_id}"
+    return f"{base_url()}/deals/{thread_id}"
 
 
 def search_url_for(query: str) -> str:
     """Hilfs-URL: nur Stichwort."""
     from urllib.parse import quote_plus
-    return f"{BASE}/search?q={quote_plus(query)}"
+    return f"{base_url()}/search?q={quote_plus(query)}"

@@ -22,8 +22,8 @@ from typing import Any, Iterable, Optional
 from bs4 import BeautifulSoup
 
 from .http_client import ParseError
+from .url_builder import base_url
 
-_BASE = "https://www.mydealz.de"
 _NORMALIZER_RE = re.compile(
     r'\{"name":"ThreadMainListItemNormalizer","props":\{"thread":(\{.*?\})\}\}'
 )
@@ -89,10 +89,11 @@ def _coerce_thread_dict(t: dict) -> dict:
     user = t.get("user") or {}
     price = _eur_to_float(t.get("price"))
     next_best = _eur_to_float(t.get("nextBestPrice"))
+    base = base_url()
     return {
         "id": str(t.get("threadId")),
-        "url": t.get("shareableLink") or f"{_BASE}/deals/{t.get('threadId')}",
-        "canonical_url": t.get("shareableLink") or f"{_BASE}/deals/{t.get('threadId')}",
+        "url": t.get("shareableLink") or f"{base}/deals/{t.get('threadId')}",
+        "canonical_url": t.get("shareableLink") or f"{base}/deals/{t.get('threadId')}",
         "titel": (t.get("title") or "").strip() or None,
         "haendler": {
             "name": merchant.get("merchantName"),

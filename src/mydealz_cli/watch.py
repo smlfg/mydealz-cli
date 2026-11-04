@@ -20,6 +20,14 @@ from typing import Optional
 
 
 def state_path() -> str:
+    """Pfad zum Watch-State.
+
+    ``MYDEALZ_WATCH_STATE`` überschreibt den kompletten Pfad, sonst gilt
+    ``$XDG_CONFIG_HOME/mydealz-cli/watch.json`` (Default ``~/.config``).
+    """
+    override = (os.environ.get("MYDEALZ_WATCH_STATE") or "").strip()
+    if override:
+        return os.path.abspath(os.path.expanduser(override))
     base = os.environ.get("XDG_CONFIG_HOME") or os.path.join(os.path.expanduser("~"), ".config")
     return os.path.join(base, "mydealz-cli", "watch.json")
 
