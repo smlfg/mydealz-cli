@@ -140,15 +140,27 @@ def test_resolve_merchant_url():
     assert m and m["name"] == "Amazon"
 
 
+def test_resolve_merchant_umlaut():
+    m = url_builder.resolve_merchant("Müller")
+    assert m and m["name"] == "Müller" and m["slug"] == "mueller-de"
+    assert url_builder.resolve_merchant("MUELLER") == m
+
+
 def test_resolve_category_known():
     c = url_builder.resolve_category("elektronik")
     assert c and c["slug"] == "elektronik"
-    # keine "id" mehr
-    assert "id" not in c or c.get("id") is None
+    assert c["id"] == 2
 
 
 def test_resolve_category_unknown():
     assert url_builder.resolve_category("nope-no-such") is None
+
+
+def test_resolve_category_id_known():
+    c = url_builder.resolve_category_id(2)
+    assert c and c["slug"] == "elektronik"
+    assert url_builder.resolve_category_id(1)["slug"] == "mode"
+    assert url_builder.resolve_category_id(999999) is None
 
 
 def test_deal_url():

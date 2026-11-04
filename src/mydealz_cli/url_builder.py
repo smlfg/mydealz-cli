@@ -162,9 +162,13 @@ def resolve_merchant(name: str) -> Optional[dict]:
                 if v["slug"] == slug:
                     return {"slug": slug, "name": v["name"]}
             return {"slug": slug, "name": slug}
-    # Direkter Kurzname
-    if s in MERCHANTS:
-        return dict(MERCHANTS[s])
+    # Direkter Kurzname oder Anzeigename (Umlaute: Müller → mueller)
+    folded = _fold(s)
+    if folded in MERCHANTS:
+        return dict(MERCHANTS[folded])
+    for key, value in MERCHANTS.items():
+        if _fold(value["name"]) == folded:
+            return dict(value)
     return None
 
 
