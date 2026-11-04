@@ -10,9 +10,11 @@ Unterstützte Query-Parameter:
 * ``type`` – ``deal`` (Default), ``voucher`` (nur Gutscheine),
   ``coupon`` (US-Name, identisch zu voucher), ``freebie``,
   ``groupdeal``.
-* ``order`` – ``newest``, ``hot`` (Standard), ``trending``,
-  ``most-discussed``, ``price-low``, ``price-high``.
-* ``hide-expired`` – ``1`` / ``0``.
+* ``sortBy`` – mydealz-Sortierschlüssel (``new``, ``temp``,
+  ``discussion``, ``lowest_price``, ``highest_price``). Das früher
+  genutzte ``order`` ignoriert der Server.
+* ``hide-expired`` – ``1`` / ``0`` (wird zusätzlich clientseitig
+  erzwungen, weil der Server den Parameter ignoriert).
 * ``page`` – Pagination, Default 1.
 * ``min-price`` / ``max-price`` – in Euro, ganzzahlig.
 * ``merchant-id`` – mydealz-Interne Händler-ID.
@@ -204,7 +206,7 @@ def build_search_url(
     if deal_type:
         params.append(("type", _normalize_type(deal_type)))
     if order:
-        params.append(("order", _normalize_order(order)))
+        params.append(("sortBy", _normalize_order(order)))
     if page and page > 1:
         params.append(("page", str(page)))
     if min_price is not None:

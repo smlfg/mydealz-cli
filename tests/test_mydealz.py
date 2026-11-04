@@ -61,7 +61,7 @@ def test_build_search_url_no_query():
     # Filter ohne Stichwort: /search (Homepage ignoriert type/order/…).
     u = url_builder.build_search_url(order="newest", hide_expired=True)
     assert u.startswith("https://www.mydealz.de/search?")
-    assert "order=newest" in u
+    assert "sortBy=new" in u
     assert "hide-expired=1" in u
     assert "q=" not in u
 
@@ -73,7 +73,7 @@ def test_build_search_url_filters_without_query_use_search_path():
     )
     assert u.startswith("https://www.mydealz.de/search?")
     assert "type=voucher" in u
-    assert "order=price-low" in u
+    assert "sortBy=lowest_price" in u
     assert "hide-expired=1" in u
     assert "q=" not in u
 
@@ -108,7 +108,7 @@ def test_build_search_url_filters():
         "min-price=200",
         "max-price=500",
         "merchant-id=77",
-        "order=hot",
+        "sortBy=temp",
         "page=2",
     ]:
         assert p in u, f"{p} fehlt in {u}"
@@ -119,8 +119,9 @@ def test_build_search_url_type_aliases():
 
 
 def test_build_search_url_order_aliases():
-    assert "order=most-discussed" in url_builder.build_search_url(order="discussed")
-    assert "order=hot" in url_builder.build_search_url(order="hot")
+    assert "sortBy=discussion" in url_builder.build_search_url(order="discussed")
+    assert "sortBy=temp" in url_builder.build_search_url(order="hot")
+    assert "sortBy=highest_price" in url_builder.build_search_url(order="price-high")
 
 
 def test_resolve_merchant_known():
