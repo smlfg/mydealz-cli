@@ -5,24 +5,26 @@ mydealz – Agent-CLI für mydealz.de
 
 ```bash
 pipx install git+https://github.com/smlfg/mydealz-cli
-```
-
-(Empfohlen – landet direkt im PATH.) Alternative:
-`pip install --user git+https://github.com/smlfg/mydealz-cli` – wenn der Befehl
-danach nicht gefunden wird: pipx nutzen oder das bin-Verzeichnis des venv in
-den PATH aufnehmen. Dann ausprobieren:
-
-```bash
 mydealz search airpods --max-price 150
 mydealz show 2853300
 mydealz watch "switch 2"
+mydealz watch "switch 2" --dry-run
 ```
 
-Im Terminal ist die Ausgabe lesbar (z.B. `[1] 129,99 € (statt 179 €) |
-AirPods Pro 2 | Amazon | 523° | ID 2345678`); mit `--json` oder in einer Pipe
-bleibt die vollständige JSON-Ausgabe erhalten (Agenten-Vertrag).
+Der erste Befehl installiert das Tool und legt `mydealz` in den PATH. Die
+Suche nimmt das Stichwort positional; `--max-price` begrenzt den Preis.
+`show` liest die Detailseite zu einer Thread-ID oder URL. `watch` merkt
+sich die gesehenen Treffer lokal: der erste Lauf meldet alle Deals als
+neu, der zweite nur das Delta, `--dry-run` zeigt das Delta ohne den State
+zu ändern.
 
-Lesezugriff-Only. Kein Login, keine POSTs, keine Messages.
+Im Terminal ist die Ausgabe lesbar (z.B. `[1] 129,62 € (statt 137,99 €) |
+Apple AirPods 5 … | OTTO | 685° | ID 2854689`); mit `--json` oder in einer
+Pipe bleibt die vollständige JSON-Ausgabe erhalten (Agenten-Vertrag).
+
+Lesezugriff-Only. Kein Login, keine POSTs, keine Messages. Deshalb gibt es
+weder `[j/N]` noch `--confirm`/`--yes`; es existiert keine schreibende
+Aktion.
 
 * Deals/Gutscheine nach Stichwort suchen
 * Filtern nach Kategorie, Händler, Preis (min/max), Temperatur, nur aktive,
@@ -31,8 +33,8 @@ Lesezugriff-Only. Kein Login, keine POSTs, keine Messages.
   nachrüstbar)
 * Lokales Keyword-Watch: neue Deals seit letztem Lauf, ohne Login
 
-Die Ausgabe ist JSON (pretty-printed), eine Zeile pro Aufruf – ideal für
-LLM-Agenten.
+Im Terminal ist die Ausgabe für Menschen lesbar; in einer Pipe oder mit
+`--json` kommt genau ein JSON-Objekt pro Aufruf – ideal für LLM-Agenten.
 
 Installation
 ------------
@@ -66,7 +68,7 @@ Beispiele
 
 Stichwort suchen, 5 neueste:
 
-    mydealz search --query "kindle" --order newest --limit 5
+    mydealz search kindle --order newest --limit 5
 
 Nur Amazon-Deals unter 50 €, sortiert nach heiß:
 
@@ -78,7 +80,7 @@ Nur Kategorie Elektronik, nur aktive, mit Gutscheincode:
 
 Preisspanne 200–500 € inkl. Händler-ID und Kategorie-ID:
 
-    mydealz search --query "monitor" --min-price 200 --max-price 500 \
+    mydealz search monitor --min-price 200 --max-price 500 \
         --merchant-id 77 --category-id 43
 
 Gutscheine (Vouchers), niedrigster Preis zuerst:
@@ -96,20 +98,21 @@ Detail mit Playwright-Rendering (braucht `pip install ".[playwright]"`):
 
 Lokales Watch (neue Deals seit letztem Lauf):
 
-    mydealz watch --query "kindle" --order newest --limit 50
+    mydealz watch kindle --order newest --limit 50
     # später erneut aufrufen → es kommen nur neue Thread-IDs
 
-    mydealz watch --query "kindle" --dry-run   # State nicht aktualisieren
+    mydealz watch kindle --dry-run   # State nicht aktualisieren
 
 JSON-Form
 ---------
 
-Jeder Aufruf gibt genau ein JSON-Objekt auf stdout aus, Fehler auf stderr
-(ebenfalls JSON, mit `"error"`). Beispiel `search`:
+Mit `--json` oder wenn stdout kein TTY ist, gibt jeder Aufruf genau ein
+JSON-Objekt auf stdout aus; Fehler gehen auf stderr (ebenfalls JSON, mit
+`"error"`). Im Terminal bleibt die Ausgabe lesbar. Beispiel `search`:
 
     {
       "quelle": "https://www.mydealz.de",
-      "url": "https://www.mydealz.de/?q=kindle&hide-expired=1",
+      "url": "https://www.mydealz.de/search?q=kindle&hide-expired=1",
       "filter": { "q": "kindle", "order": "newest", ... },
       "hinweis": null,
       "anzahl": 12,
@@ -148,6 +151,16 @@ Exit-Codes
     2  Voraussetzung fehlt (z. B. Playwright nicht installiert)
     3  HTTP-/Netzwerkfehler
     4  Parse-Fehler (unerwartetes Markup)
+    130 Abbruch (Strg+C/EOF)
+
+Umgebung
+--------
+
+    MYDEALZ_BASE_URL       Basis-URL, Default https://www.mydealz.de
+                           (für Fake-Server-Tests)
+    MDZ_MIN_INTERVAL_MS    Mindestabstand zwischen Requests, Default 1000
+    XDG_CONFIG_HOME        Basis für den Watch-State
+    MYDEALZ_WATCH_STATE    vollständiger Pfad zur Watch-State-Datei
 
 Filter
 ------
@@ -194,10 +207,10 @@ echten Hosts werden blockiert.
 
 Test in einem frischen venv (CI-Setup):
 
-    python -m venv /tmp/mdz-venv
-    /tmp/mdz-venv/bin/pip install .
-    /tmp/mdz-venv/bin/pip install pytest
-    /tmp/mdz-venv/bin/pytest -q
+    python -m venv .venv
+    .venv/bin/pip install .
+    .venv/bin/pip install pytest
+    .venv/bin/pytest -q
 
 Sicherheit / Privatsphäre
 -------------------------
