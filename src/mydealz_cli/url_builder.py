@@ -30,6 +30,7 @@ verwendet. Das war falsch – mydealz ignoriert dort den
 from __future__ import annotations
 
 import os
+import unicodedata
 from typing import Optional
 from urllib.parse import urlsplit
 
@@ -93,30 +94,32 @@ MERCHANTS: dict[str, dict] = {
 # Bekannte Kategorie-Slugs (Top-Level). Wie bei Händlern sind die
 # numerischen IDs nicht stabil; die Slugs aber schon.
 CATEGORIES: dict[str, dict] = {
-    "elektronik": {"slug": "elektronik", "name": "Elektronik"},
-    "computer": {"slug": "computer", "name": "Computer"},
+    "elektronik": {"slug": "elektronik", "name": "Elektronik", "id": 2},
+    "computer": {"slug": "computer", "name": "Computer", "id": 34},
     "games": {"slug": "games", "name": "Games"},
-    "kultur-freizeit": {"slug": "kultur-freizeit", "name": "Kultur & Freizeit"},
-    "haushalt": {"slug": "haushalt", "name": "Haushalt"},
-    "mode": {"slug": "mode", "name": "Mode"},
-    "beauty": {"slug": "beauty", "name": "Beauty"},
-    "sport": {"slug": "sport", "name": "Sport"},
+    "kultur-freizeit": {"slug": "kultur-freizeit", "name": "Kultur & Freizeit", "id": 1290},
+    "haushalt": {"slug": "haushalt", "name": "Haushalt", "id": 8},
+    "mode": {"slug": "mode", "name": "Mode", "id": 1},
+    "beauty": {"slug": "beauty", "name": "Beauty", "id": 14},
+    "sport": {"slug": "sport", "name": "Sport", "id": 132},
     "auto-moto": {"slug": "auto-moto", "name": "Auto & Motorrad"},
-    "reisen": {"slug": "reisen", "name": "Reisen"},
+    "reisen": {"slug": "reisen", "name": "Reisen", "id": 7},
     "finanzen": {"slug": "finanzen", "name": "Finanzen"},
-    "wohnen": {"slug": "wohnen", "name": "Wohnen"},
-    "lebensmittel": {"slug": "lebensmittel", "name": "Lebensmittel"},
-    "handy-telekom": {"slug": "handy-telekom", "name": "Handy & Telekom"},
+    "wohnen": {"slug": "wohnen", "name": "Wohnen", "id": 4},
+    "lebensmittel": {"slug": "lebensmittel", "name": "Lebensmittel", "id": 118},
+    "handy-telekom": {"slug": "handy-telekom", "name": "Handy & Telekom", "id": 1258},
 }
 
 
+# mydealz sortiert über ``sortBy``; die Schlüssel stammen aus der
+# Suchseite (``sortBy[].key``). ``order`` wird vom Server ignoriert.
 ORDERS: dict[str, str] = {
-    "newest": "newest",
-    "hot": "hot",
-    "trending": "trending",
-    "discussed": "most-discussed",
-    "price-low": "price-low",
-    "price-high": "price-high",
+    "newest": "new",
+    "hot": "temp",
+    "trending": "temp",
+    "discussed": "discussion",
+    "price-low": "lowest_price",
+    "price-high": "highest_price",
 }
 
 
@@ -129,10 +132,19 @@ DEAL_TYPES: dict[str, str] = {
 }
 
 
+def _fold(value: str) -> str:
+    """Kleinschreibung + deutsche Umlaute/ß für stabile Vergleiche."""
+    s = (value or "").strip().lower()
+    for src, dst in (("ä", "ae"), ("ö", "oe"), ("ü", "ue"), ("ß", "ss")):
+        s = s.replace(src, dst)
+    return unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode("ascii")
+
+
 def resolve_merchant(name: str) -> Optional[dict]:
     """Liefert Händler-Mapping oder ``None``.
 
-    Akzeptiert den Kurznamen (``"amazon"``) oder die volle URL
+    Akzeptiert den Kurznamen (``"amazon"``), den Anzeigenamen
+    (``"Müller"``) oder die volle URL
     (``https://www.mydealz.de/profile/amazon-de``). Liefert NUR
     ``{slug, name}`` — die numerische ID ist nicht stabil und
     wird vom Aufrufer per ``--merchant-id`` zusätzlich gesetzt.
@@ -160,17 +172,34 @@ def resolve_category(name: str) -> Optional[dict]:
     s = (name or "").strip().lower()
     if not s:
         return None
-    if s in CATEGORIES:
-        return dict(CATEGORIES[s])
-    # URL /group/<slug>
+    folded = _fold(s)
+    if folded in CATEGORIES:
+        return dict(CATEGORIES[folded])
+    for key, value in CATEGORIES.items():
+        if _fold(value["name"]) == folded or _fold(value["slug"]) == folded:
+            return dict(value)
+    # URL /group/<slug> oder /gruppe/<slug>
     import re
-    m = re.search(r"/group/([a-z0-9-]+)", s)
+    m = re.search(r"/grupp?e?/([a-z0-9-]+)", s)
     if m:
         slug = m.group(1)
         for v in CATEGORIES.values():
             if v["slug"] == slug:
                 return {"slug": slug, "name": v["name"]}
         return {"slug": slug, "name": slug}
+    return None
+
+
+def resolve_category_id(category_id: int) -> Optional[dict]:
+    """Liefert die bekannte Kategorie zu einer mydealz-Gruppen-ID."""
+    try:
+        wanted = int(category_id)
+    except (TypeError, ValueError):
+        return None
+    for value in CATEGORIES.values():
+        cid = value.get("id")
+        if cid is not None and int(cid) == wanted:
+            return dict(value)
     return None
 
 

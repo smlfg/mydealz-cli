@@ -95,6 +95,7 @@ def _coerce_thread_dict(t: dict) -> dict:
         "url": t.get("shareableLink") or f"{base}/deals/{t.get('threadId')}",
         "canonical_url": t.get("shareableLink") or f"{base}/deals/{t.get('threadId')}",
         "titel": (t.get("title") or "").strip() or None,
+        "typ": t.get("type") or None,
         "haendler": {
             "name": merchant.get("merchantName"),
             "slug": merchant.get("merchantUrlName"),

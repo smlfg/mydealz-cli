@@ -301,6 +301,61 @@ def test_apply_filters_min_temperature(parsed_search):
             assert o["temperatur"] >= 600
 
 
+def test_apply_filters_by_category_slug(parsed_search):
+    out = _apply_filters(
+        parsed_search, haendler=None, min_preis=None, max_preis=None,
+        min_temperatur=None, nur_aktiv=False, nur_mit_code=False,
+        kategorie="elektronik",
+    )
+    assert out
+    assert all(o["kategorie"]["name"] == "Elektronik" for o in out)
+
+
+def test_apply_filters_category_id_resolves_when_item_id_missing(parsed_search):
+    items = []
+    for item in parsed_search:
+        copy = dict(item)
+        copy["kategorie"] = dict(item["kategorie"], id=None)
+        items.append(copy)
+    out = _apply_filters(
+        items, haendler=None, kategorie_id=2, min_preis=None, max_preis=None,
+        min_temperatur=None, nur_aktiv=False, nur_mit_code=False,
+    )
+    assert out
+    assert all(o["kategorie"]["name"] == "Elektronik" for o in out)
+
+
+def test_apply_filters_type_coupon(search_coupon_html):
+    items = parser.parse_search(search_coupon_html, limit=100)
+    out = _apply_filters(
+        items, haendler=None, min_preis=None, max_preis=None,
+        min_temperatur=None, nur_aktiv=False, nur_mit_code=False,
+        typ="coupon",
+    )
+    assert out
+    assert len(out) < len(items)
+    assert all(o.get("gutschein_code") or (o.get("typ") or "").lower() == "voucher" for o in out)
+
+
+def test_apply_filters_include_expired():
+    items = [
+        {"id": "1", "ist_aktiv": True},
+        {"id": "2", "ist_aktiv": False},
+    ]
+    without = _apply_filters(
+        items, haendler=None, min_preis=None, max_preis=None,
+        min_temperatur=None, nur_aktiv=False, nur_mit_code=False,
+        include_expired=False,
+    )
+    with_expired = _apply_filters(
+        items, haendler=None, min_preis=None, max_preis=None,
+        min_temperatur=None, nur_aktiv=False, nur_mit_code=False,
+        include_expired=True,
+    )
+    assert [i["id"] for i in without] == ["1"]
+    assert [i["id"] for i in with_expired] == ["1", "2"]
+
+
 # ---------- Watch (lokal, ohne HTTP) ----------
 
 def test_watch_diff_no_prior_state():

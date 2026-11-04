@@ -183,20 +183,59 @@ def _apply_filters(
     min_temperatur: Optional[float],
     nur_aktiv: bool,
     nur_mit_code: bool,
+    kategorie: Optional[str] = None,
+    typ: Optional[str] = None,
+    include_expired: bool = True,
 ) -> list[dict]:
     out = list(items)
     if haendler:
-        sl = haendler.lower()
+        sl = url_builder._fold(haendler)
         out = [
             i for i in out
-            if (i.get("haendler", {}).get("name") or "").lower() == sl
-            or (i.get("haendler", {}).get("slug") or "").lower() == sl
+            if url_builder._fold((i.get("haendler", {}).get("name") or "")) == sl
+            or url_builder._fold((i.get("haendler", {}).get("slug") or "")) == sl
         ]
-    if kategorie_id is not None:
+    if kategorie:
+        wanted = url_builder._fold(kategorie)
         out = [
             i for i in out
-            if (i.get("kategorie") or {}).get("id") == kategorie_id
+            if url_builder._fold((i.get("kategorie") or {}).get("slug") or "") == wanted
+            or url_builder._fold((i.get("kategorie") or {}).get("name") or "") == wanted
         ]
+    elif kategorie_id is not None:
+        mapped = url_builder.resolve_category_id(kategorie_id)
+        if mapped:
+            wanted = url_builder._fold(mapped["slug"])
+            out = [
+                i for i in out
+                if url_builder._fold((i.get("kategorie") or {}).get("slug") or "") == wanted
+                or url_builder._fold((i.get("kategorie") or {}).get("name") or "") == wanted
+            ]
+        else:
+            out = [
+                i for i in out
+                if (i.get("kategorie") or {}).get("id") == kategorie_id
+            ]
+    if typ:
+        t = (typ or "").strip().lower()
+        if t in ("coupon", "voucher"):
+            out = [
+                i for i in out
+                if (i.get("typ") or "").lower() == "voucher"
+                or bool(i.get("gutschein_code"))
+            ]
+        elif t == "freebie":
+            out = [
+                i for i in out
+                if (i.get("typ") or "").lower() == "freebie"
+                or i.get("preis_eur") in (0, 0.0)
+            ]
+        elif t == "groupdeal":
+            out = [i for i in out if (i.get("typ") or "").lower() == "groupdeal"]
+        elif t == "deal":
+            out = [i for i in out if (i.get("typ") or "deal").lower() != "voucher"]
+    if not include_expired:
+        out = [i for i in out if i.get("ist_aktiv") is not False]
     if min_preis is not None:
         out = [i for i in out if i["preis_eur"] is None or i["preis_eur"] >= min_preis]
     if max_preis is not None:
@@ -300,6 +339,8 @@ def cmd_search(args: argparse.Namespace) -> int:
             (merchant_obj and not args.merchant_id)
             or (category_obj and not args.category_id)
             or args.category_id is not None
+            or args.type in ("coupon", "voucher", "freebie", "groupdeal")
+            or not args.include_expired
         )
         parse_limit = max(args.limit or 20, 100 if needs_local_filter else 50)
         items = parser.parse_search(r.text, limit=parse_limit)
@@ -313,12 +354,15 @@ def cmd_search(args: argparse.Namespace) -> int:
     items = _apply_filters(
         items,
         haendler=(merchant_obj.get("name") if merchant_obj else None),
+        kategorie=(category_obj.get("slug") if category_obj else None),
         kategorie_id=args.category_id,
         min_preis=args.min_price,
         max_preis=args.max_price,
         min_temperatur=args.min_temperature,
         nur_aktiv=args.only_active,
         nur_mit_code=args.only_with_code,
+        typ=args.type,
+        include_expired=args.include_expired,
     )
     if args.limit:
         items = items[: args.limit]
@@ -333,10 +377,18 @@ def cmd_search(args: argparse.Namespace) -> int:
             "instabil sind."
         )
     elif args.category_id is not None:
-        hinweis = (
-            "Kategorie-ID-Filter wird lokal auf den Server-Treffern "
-            "angewendet; mydealz ignoriert group-id in der Such-URL."
-        )
+        mapped = url_builder.resolve_category_id(args.category_id)
+        if mapped:
+            hinweis = (
+                f"Kategorie-ID {args.category_id} entspricht "
+                f"{mapped['name']!r} und wird lokal über den Slug "
+                "gefiltert; mydealz ignoriert group-id in der Such-URL."
+            )
+        else:
+            hinweis = (
+                "Kategorie-ID-Filter wird lokal auf den Server-Treffern "
+                "angewendet; mydealz ignoriert group-id in der Such-URL."
+            )
     payload = {
         "quelle": url_builder.base_url(),
         "url": url,
@@ -516,12 +568,15 @@ def cmd_watch(args: argparse.Namespace) -> int:
     items = _apply_filters(
         items,
         haendler=(merchant_obj.get("name") if merchant_obj else None),
+        kategorie=(category_obj.get("slug") if category_obj else None),
         kategorie_id=args.category_id,
         min_preis=args.min_price,
         max_preis=args.max_price,
         min_temperatur=args.min_temperature,
         nur_aktiv=args.only_active,
         nur_mit_code=args.only_with_code,
+        typ=args.type,
+        include_expired=args.include_expired,
     )
     if args.limit:
         items = items[: args.limit]
