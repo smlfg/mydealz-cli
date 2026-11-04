@@ -58,7 +58,7 @@
 | 44 | Keine Tracebacks | alle Läufe inkl. Netz-/Env-/Argparse-Fehler | keine Tracebacks | OK | in allen Pseudo-Terminal-Logs keine Traceback-Zeilen |
 | 45 | Nur lesende GETs | Quellcode + Fake-Server-Protokoll | keine POST/PUT/DELETE | OK | `rg` findet keine schreibenden HTTP-Aufrufe; Fake-Server nur GET |
 | 46 | Login | `mydealz login` | kein Login nötig | OK (entfällt) | `credential_env` leer; `login` ist unbekannt (Exit 2, kein Traceback) |
-| 47 | Testsuite | `scratch/venv/bin/pytest -q` | grün | OK | `100 passed` |
+| 47 | Testsuite | `scratch/venv/bin/pytest -q` | grün | OK | `110 passed` |
 
 ## Zählung
 
