@@ -625,11 +625,11 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser_ = _build_parser()
     try:
         args = parser_.parse_args(argv)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, EOFError):
         if _human_err():
             sys.stderr.write("\nAbgebrochen.\n")
             return 130
-        _err("Abgebrochen (KeyboardInterrupt)", code=130)
+        _err("Abgebrochen (KeyboardInterrupt/EOF)", code=130)
     # Kein Subbefehl:
     if not getattr(args, "func", None):
         if _human_err():
