@@ -182,6 +182,9 @@ def test_watch_state_env_overrides_xdg(monkeypatch, tmp_path):
 def test_normalize_thread_id():
     assert parser.normalize_thread_id("2853300") == "2853300"
     assert parser.normalize_thread_id("https://www.mydealz.de/deals/foo-2853300") == "2853300"
+    assert parser.normalize_thread_id(
+        "https://www.mydealz.de/deals/foo-446800-bew-2853300"
+    ) == "2853300"
     with pytest.raises(ValueError):
         parser.normalize_thread_id("foo")
 

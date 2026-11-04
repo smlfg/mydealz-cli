@@ -354,12 +354,25 @@ def cmd_search(args: argparse.Namespace) -> int:
 
 # ---------- show ----------
 
+def _explicit_deal_url(raw: str) -> Optional[str]:
+    """Liefert eine vom Nutzer angegebene URL unverändert zurück."""
+    s = (raw or "").strip()
+    if not s or s.isdigit():
+        return None
+    if "://" in s:
+        return s
+    if s.startswith("/"):
+        return url_builder.base_url() + s
+    return None
+
+
 def cmd_show(args: argparse.Namespace) -> int:
     try:
         tid = parser.normalize_thread_id(args.deal)
     except ValueError as e:
         _err(str(e), code=1)
-    url = url_builder.deal_url(tid)
+    explicit_url = _explicit_deal_url(args.deal)
+    url = explicit_url or url_builder.deal_url(tid)
     if args.render == "playwright":
         try:
             from . import detail_render  # noqa: WPS433
@@ -390,6 +403,16 @@ def cmd_show(args: argparse.Namespace) -> int:
             code=3,
             url=url,
         )
+    # mydealz liefert bei /deals/<ID> ohne Slug inzwischen HTTP 410.
+    # Die ID-Route /share-deal/<ID> leitet auf die kanonische URL weiter.
+    if explicit_url is None and r.status in (404, 410):
+        try:
+            alt = http.get(url_builder.share_url(tid))
+        except HTTPError:
+            alt = None
+        if alt is not None and alt.status < 400:
+            r = alt
+            url = url_builder.share_url(tid)
     if r.status >= 400:
         _err(
             f"HTTP {r.status} beim Laden des Deals. "

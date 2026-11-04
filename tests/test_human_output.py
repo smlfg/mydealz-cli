@@ -119,6 +119,56 @@ def test_show_terminal_readable(detail_html, capsys, monkeypatch, tty):
     assert out.splitlines()[0]  # Titel als erste Zeile
 
 
+def test_show_falls_back_to_share_deal_on_410(detail_html, capsys, monkeypatch):
+    from mydealz_cli.http_client import Response
+
+    seen = []
+
+    class Client:
+        def get(self, url):
+            seen.append(url)
+            if url.endswith("/deals/2853300"):
+                return Response(status=410, url=url, text="gone")
+            if url.endswith("/share-deal/2853300"):
+                return Response(
+                    status=200,
+                    url="https://www.mydealz.de/deals/schachnovelle-2853300",
+                    text=detail_html,
+                )
+            raise AssertionError(url)
+
+    monkeypatch.setattr(cli, "HttpClient", lambda: Client())
+    assert cli.main(["show", "2853300", "--json"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["deal"]["id"] == "2853300"
+    assert "Schachnovelle" in payload["deal"]["titel"]
+    assert seen == [
+        "https://www.mydealz.de/deals/2853300",
+        "https://www.mydealz.de/share-deal/2853300",
+    ]
+
+
+def test_show_uses_given_slug_url_unchanged(detail_html, capsys, monkeypatch):
+    from mydealz_cli.http_client import Response
+
+    seen = []
+    slug = (
+        "https://www.mydealz.de/deals/amazon-kindle-schachnovelle-"
+        "2853300"
+    )
+
+    class Client:
+        def get(self, url):
+            seen.append(url)
+            return Response(status=200, url=url, text=detail_html)
+
+    monkeypatch.setattr(cli, "HttpClient", lambda: Client())
+    assert cli.main(["show", slug, "--json"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["deal"]["id"] == "2853300"
+    assert seen == [slug]
+
+
 # ---------- watch ----------
 
 def test_watch_pipe_without_json_stays_json(

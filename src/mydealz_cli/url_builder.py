@@ -239,6 +239,11 @@ def deal_url(thread_id: str) -> str:
     return f"{base_url()}/deals/{thread_id}"
 
 
+def share_url(thread_id: str) -> str:
+    """ID-Route, die per Redirect auf die kanonische Slug-URL führt."""
+    return f"{base_url()}/share-deal/{thread_id}"
+
+
 def search_url_for(query: str) -> str:
     """Hilfs-URL: nur Stichwort."""
     from urllib.parse import quote_plus

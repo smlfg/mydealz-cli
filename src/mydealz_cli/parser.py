@@ -251,8 +251,12 @@ def normalize_thread_id(s: str) -> str:
         path = urlparse(s).path
     else:
         path = s
-    # Letzte Zahl im Pfad
-    m = re.search(r"(\d{4,})", path or "")
-    if m:
-        return m.group(1)
-    raise ValueError(f"konnte keine Thread-ID aus {s!r} ableiten")
+    # Letzte Zahl im Pfad (Slugs können weitere Zahlen enthalten).
+    matches = re.findall(r"(\d{4,})", path or "")
+    if matches:
+        return matches[-1]
+    raise ValueError(
+        f"konnte keine Thread-ID aus {s!r} ableiten. "
+        "Nächster Schritt: numerische Thread-ID (z. B. 2853300) oder "
+        "vollständige Deal-URL angeben."
+    )
