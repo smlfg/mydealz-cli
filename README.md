@@ -3,16 +3,20 @@ mydealz – Agent-CLI für mydealz.de
 
 ## Schnellstart
 
-    pipx install git+https://github.com/smlfg/mydealz-cli
+```bash
+pipx install git+https://github.com/smlfg/mydealz-cli
+```
 
 (Empfohlen – landet direkt im PATH.) Alternative:
 `pip install --user git+https://github.com/smlfg/mydealz-cli` – wenn der Befehl
 danach nicht gefunden wird: pipx nutzen oder das bin-Verzeichnis des venv in
 den PATH aufnehmen. Dann ausprobieren:
 
-    mydealz search airpods --max-price 150
-    mydealz show 2345678
-    mydealz watch "switch 2"
+```bash
+mydealz search airpods --max-price 150
+mydealz show 2853300
+mydealz watch "switch 2"
+```
 
 Im Terminal ist die Ausgabe lesbar (z.B. `[1] 129,99 € (statt 179 €) |
 AirPods Pro 2 | Amazon | 523° | ID 2345678`); mit `--json` oder in einer Pipe
