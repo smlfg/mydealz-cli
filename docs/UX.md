@@ -32,7 +32,6 @@ ein Mensch ohne Nachschlagen weiterarbeiten kann.
 
 ```ux-session
 $ pipx install git+https://github.com/smlfg/mydealz-cli
-< mydealz
 $ mydealz search airpods --max-price 150
 <~ \d+ Treffer · .*/search\?q=airpods&max-price=150&hide-expired=1
 <~ \[1\] 129,62 € .*OTTO.*ID 2854689
