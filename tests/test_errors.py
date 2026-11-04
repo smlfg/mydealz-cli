@@ -90,3 +90,19 @@ def test_eof_returns_130_without_traceback(monkeypatch, capsys):
     err = capsys.readouterr().err
     assert "Traceback" not in err
     assert "Abgebrochen" in err
+
+
+def test_invalid_thread_id_names_next_step():
+    r = _run_cli("show", "nichtnumerisch", "--json")
+    assert r.returncode == 1
+    assert "Traceback" not in r.stderr
+    payload = json.loads(r.stderr.strip())
+    assert "Nächster Schritt" in payload["error"]
+
+
+def test_unknown_option_names_next_step():
+    r = _run_cli("search", "--unbekannt", "--json")
+    assert r.returncode == 1
+    assert "Traceback" not in r.stderr
+    payload = json.loads(r.stderr.strip())
+    assert "Nächster Schritt" in payload["error"]

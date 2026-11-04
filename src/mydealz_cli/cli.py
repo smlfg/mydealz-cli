@@ -66,10 +66,13 @@ def _err(msg: str, *, code: int, **extra: Any) -> NoReturn:
 
 class _CliArgumentParser(argparse.ArgumentParser):
     def error(self, message: str) -> NoReturn:
+        hint = "Nächster Schritt: Aufruf mit 'mydealz --help' prüfen."
         if _human_err():
-            # Terminal: normale argparse-Usage statt JSON.
-            super().error(message)
-        _err(message, code=1)
+            # Terminal: Usage plus nächster Schritt statt JSON.
+            self.print_usage(sys.stderr)
+            sys.stderr.write(f"{self.prog}: Fehler: {message}. {hint}\n")
+            sys.exit(2)
+        _err(f"{message}. {hint}", code=1)
 
 
 # ---------- menschliche (lesbare) Ausgabe ----------
