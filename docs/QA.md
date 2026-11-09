@@ -83,6 +83,15 @@ Gate-Nachlauf: `pytest -q` → `110 passed`;
 `tests/harness/ux_check.py .` → Exit 0 (PASS);
 `tests/harness/ux_session.py .` → Exit 0 (PASS).
 
+Erneute Live-Nachprüfung am 2026-11-09 (nur lesende GETs): `show 2853300`
+und Slug-URL → Exit 0; `--category elektronik` → 8/8 Elektronik;
+`--category-id 1` → 0 (Mode), `--category-id 2` → 8/8 Elektronik;
+`--order price-low/price-high/newest` → unterschiedliche Reihenfolge;
+`--type coupon` → 6/6 mit Gutscheincode; `--include-expired` → 20 statt 12
+Treffer; `--merchant "Müller"` → Exit 0; ID-/Optionsfehler → Exit 1 mit
+`Nächster Schritt`. `pytest -q` → `110 passed`; `ux_check.py .` und
+`ux_session.py .` → jeweils Exit 0 (PASS). Logs: `scratch/qa/s6c_*`.
+
 ## Beobachtungen (kein FAIL)
 
 - `mydealz search "zzzz…"` liefert live 4 unpassende Fallback-Treffer. Das ist das Verhalten der mydealz-Suche, nicht des CLI; die Behandlung einer echten leeren Liste wurde gegen einen lokalen Leer-Server geprüft (0 Treffer, valides JSON).
